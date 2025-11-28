@@ -20,40 +20,6 @@ const hasSilentResult = ref(false);
 // Start analysis
 const startAnalysis = async () => {
   if (hasSilentResult.value) {
-    // If we have a silent result ready, just show it
-    await invoke("analyze", { silent: false }); // Re-trigger to resize window, but we already have data
-    // Actually, analyze command captures again. We just need to resize.
-    // But since we can't easily resize from frontend without a command, let's just use a dedicated "show_overlay" logic or hack it.
-    // Simpler: Just call analyze(silent=false) but ignore the new capture if we have data?
-    // No, that's wasteful.
-    // Let's just use the fact that we have data.
-    // We need a command to just "Resize to Dialogue".
-    // For now, let's re-analyze to keep it simple, OR we can just use the existing flow.
-    // Wait, if I click "Ready", I want to see the result I *already* got.
-    // I can't resize the window from Vue easily without a Tauri command.
-    // Let's assume the user wants to capture the *current* state anyway? No, silent mode implies "I captured earlier".
-    
-    // Workaround: We will use the `reset_window` logic but inverted?
-    // Let's just trigger analyze(silent=false) for now. It will re-capture. 
-    // If the user wants the *old* result, we should save it.
-    // But the user said "show options obtained via silent analysis".
-    // So we MUST use the old result.
-    // We need a way to resize window without capturing.
-    // Since I can't add a new Rust command easily without risk, I will use `analyze` but maybe ignore the image in frontend?
-    // But `analyze` forces a capture delay.
-    // Let's just accept the delay for now or try to use `Window.set_size` from frontend if allowed (it is allowed if configured).
-    // I'll try to use `appWindow` from `@tauri-apps/api/window` if available, but I don't have it imported.
-    // Let's stick to: Silent analysis gets the result. When clicking "Ready", we show the overlay.
-    // The overlay needs to be full size.
-    // I will trigger `analyze(silent=false)` but use the *existing* `options` if `hasSilentResult` is true.
-    
-    // Actually, if I call analyze(silent=false), it will emit `analyze-chat` again.
-    // I can ignore that event if I want.
-    loading.value = false;
-    showDialogue.value = true;
-    // We need to resize the window!
-    // Since I can't resize from here, I HAVE to call backend.
-    // I will call `analyze(silent=false)`.
     await invoke("analyze", { silent: false });
     return;
   }
@@ -70,7 +36,6 @@ const startAnalysis = async () => {
 // Close dialogue
 const closeDialogue = async () => {
   showDialogue.value = false;
-  // Don't clear options if we want to keep them? No, close means reset.
   options.value = null;
   hasSilentResult.value = false;
   error.value = "";
@@ -82,9 +47,6 @@ const quitApp = async () => {
 };
 
 const analyzeImage = async (base64Image: string) => {
-  // If we already have options and we are just "showing" them (from silent mode click), ignore this new analysis?
-  // But `analyze` was called to resize.
-  // If `hasSilentResult` is true, we preserve the old options.
   if (hasSilentResult.value && showDialogue.value) {
      loading.value = false;
      return;
@@ -122,7 +84,6 @@ const analyzeImage = async (base64Image: string) => {
       hasSilentResult.value = true;
       isAnalyzingSilent.value = false;
       loading.value = false;
-      // Don't show dialogue, just stay in widget mode (which will update UI to "Ready")
     }
   } catch (e: any) {
     console.error("Analysis Error:", e);
@@ -181,70 +142,80 @@ const toggleSilentMode = (e: Event) => {
 </script>
 
 <template>
-  <!-- Widget Mode -->
+  <!-- Widget Mode: Cute Badge Style -->
   <div v-if="!showDialogue" class="widget-container" data-tauri-drag-region>
-    <!-- Main Button -->
-    <div class="main-btn" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
-        <div class="btn-content">
+    <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
+        <div class="paw-print">
+            <div class="pad main"></div>
+            <div class="pad toe t1"></div>
+            <div class="pad toe t2"></div>
+            <div class="pad toe t3"></div>
+        </div>
+        <div class="badge-label">
             <span v-if="hasSilentResult">查看</span>
-            <span v-else>分析</span>
+            <span v-else>Start</span>
         </div>
     </div>
 
-    <!-- Controls Row -->
-    <div class="controls-row">
-        <button class="icon-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
-            <span v-if="isSilentMode">🤫</span>
-            <span v-else>🔔</span>
+    <!-- Mini Controls -->
+    <div class="mini-controls">
+        <button class="mini-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+            <div class="indicator" :class="{ 'on': isSilentMode }"></div>
+            <span>Silent</span>
         </button>
-        <button class="icon-btn quit" @click="quitApp" title="退出">
-            ❌
+        <button class="mini-btn quit" @click="quitApp" title="退出">
+            <span>Exit</span>
         </button>
     </div>
   </div>
 
-  <!-- Dialogue Mode (Directly the box, no wrapper) -->
-  <div v-else class="dialogue-box">
-      <div class="header-bar" data-tauri-drag-region>
-        <span class="title">GALGAME ASSISTANT</span>
-        <div class="controls">
-            <button class="control-btn close" @click="closeDialogue">×</button>
-        </div>
-      </div>
+  <!-- Dialogue Mode: Visual Novel Menu Style -->
+  <div v-else class="vn-container">
+      <div class="vn-box">
+          <!-- Decorative Header -->
+          <div class="vn-header" data-tauri-drag-region>
+              <div class="header-ribbon">
+                  <span class="header-text">Galgame Assistant</span>
+              </div>
+              <button class="vn-close-btn" @click="closeDialogue">Close</button>
+          </div>
 
-      <div class="content">
-        <div v-if="loading" class="loading-state">
-            <div class="progress-bar">
-                <div class="progress-fill"></div>
+          <div class="vn-content">
+            <!-- Loading State -->
+            <div v-if="loading" class="vn-loading">
+                <div class="bounce-dot"></div>
+                <div class="bounce-dot"></div>
+                <div class="bounce-dot"></div>
             </div>
-            <span class="loading-label">SYSTEM ANALYZING...</span>
-        </div>
-        
-        <div v-else-if="error" class="error-text">
-            {{ error }}
-            <button class="retry-btn" @click="retryAnalysis">RETRY</button>
-        </div>
+            
+            <!-- Error State -->
+            <div v-else-if="error" class="vn-error">
+                <p>{{ error }}</p>
+                <button class="vn-retry-btn" @click="retryAnalysis">Retry</button>
+            </div>
 
-        <div v-else-if="options" class="options-list">
-            <div class="option-item" @click="copyToClipboard(options.tsundere)">
-                <span class="label">【傲娇】</span>
-                <span class="text">{{ options.tsundere }}</span>
+            <!-- Options List -->
+            <div v-else-if="options" class="vn-options">
+                <div class="vn-option-card pink" @click="copyToClipboard(options.tsundere)">
+                    <div class="card-label">Tsundere</div>
+                    <div class="card-text">{{ options.tsundere }}</div>
+                </div>
+                <div class="vn-option-card blue" @click="copyToClipboard(options.sweet)">
+                    <div class="card-label">Sweet</div>
+                    <div class="card-text">{{ options.sweet }}</div>
+                </div>
+                <div class="vn-option-card yellow" @click="copyToClipboard(options.funny)">
+                    <div class="card-label">Funny</div>
+                    <div class="card-text">{{ options.funny }}</div>
+                </div>
             </div>
-            <div class="option-item" @click="copyToClipboard(options.sweet)">
-                <span class="label">【温柔】</span>
-                <span class="text">{{ options.sweet }}</span>
-            </div>
-            <div class="option-item" @click="copyToClipboard(options.funny)">
-                <span class="label">【搞笑】</span>
-                <span class="text">{{ options.funny }}</span>
-            </div>
-        </div>
+          </div>
       </div>
   </div>
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@500;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c:wght@400;700&display=swap');
 
 html, body, #app {
   margin: 0;
@@ -254,12 +225,12 @@ html, body, #app {
   background: transparent;
   overflow: hidden;
   user-select: none;
-  font-family: 'Noto Serif SC', serif;
+  font-family: 'M PLUS Rounded 1c', sans-serif; /* Cute rounded font */
 }
 </style>
 
 <style scoped>
-/* Widget Styles */
+/* --- Widget Styles --- */
 .widget-container {
   width: 100vw;
   height: 100vh;
@@ -267,194 +238,277 @@ html, body, #app {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
-.main-btn {
-    width: 60px;
-    height: 60px;
-    background: linear-gradient(135deg, #2c3e50, #000);
-    border: 2px solid #d4af37;
+.cute-badge {
+    width: 65px;
+    height: 65px;
+    background: #fff5e6; /* Cream */
+    border: 3px solid #ffb7b2; /* Pastel Pink */
     border-radius: 50%;
     display: flex;
+    flex-direction: column;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
-    transition: all 0.2s;
+    box-shadow: 0 4px 10px rgba(142, 110, 83, 0.2); /* Soft brown shadow */
+    transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
-    overflow: hidden;
 }
 
-.main-btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+.cute-badge:hover {
+    transform: scale(1.1) rotate(5deg);
+    border-color: #ff9e99;
 }
 
-.main-btn::after {
-    content: '';
+.cute-badge.analyzing {
+    border-color: #ffd93d; /* Yellow */
+    animation: wiggle 1s infinite;
+}
+
+.cute-badge.ready {
+    border-color: #6ff7c1; /* Mint */
+    background: #e0fff4;
+}
+
+/* Paw Print CSS */
+.paw-print {
+    position: relative;
+    width: 30px;
+    height: 30px;
+    margin-bottom: 2px;
+}
+
+.pad {
+    background: #ffb7b2;
     position: absolute;
-    top: -50%; left: -50%; width: 200%; height: 200%;
-    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
-    transform: rotate(45deg);
-    animation: shine 3s infinite;
+    border-radius: 50%;
 }
 
-.main-btn.analyzing { border-color: #feca57; }
-.main-btn.ready { border-color: #55efc4; }
+.cute-badge.ready .pad { background: #6ff7c1; }
 
-.btn-content {
-    color: #d4af37;
+.pad.main {
+    width: 16px; height: 14px;
+    bottom: 2px; left: 7px;
+    border-radius: 40% 40% 50% 50%;
+}
+
+.pad.toe { width: 8px; height: 10px; top: 0; }
+.t1 { left: 0; transform: rotate(-20deg); }
+.t2 { left: 11px; top: -2px; }
+.t3 { right: 0; transform: rotate(20deg); }
+
+.badge-label {
+    font-size: 0.7rem;
+    color: #8e6e53; /* Chocolate */
     font-weight: bold;
-    font-size: 0.9rem;
-    z-index: 2;
 }
 
-.controls-row {
+.mini-controls {
     display: flex;
-    gap: 10px;
-    background: rgba(0,0,0,0.6);
-    padding: 5px 10px;
-    border-radius: 20px;
-    border: 1px solid rgba(255,255,255,0.1);
+    gap: 8px;
+    background: rgba(255, 255, 255, 0.9);
+    padding: 4px 8px;
+    border-radius: 12px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
 }
 
-.icon-btn {
+.mini-btn {
     background: none;
     border: none;
+    font-size: 0.7rem;
+    color: #8e6e53;
     cursor: pointer;
-    font-size: 1.2rem;
-    opacity: 0.7;
-    transition: all 0.2s;
-    padding: 2px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 4px;
+    border-radius: 4px;
+    transition: background 0.2s;
 }
 
-.icon-btn:hover { opacity: 1; transform: scale(1.1); }
-.icon-btn.active { opacity: 1; text-shadow: 0 0 5px #fff; }
-.icon-btn.quit:hover { transform: scale(1.2); }
+.mini-btn:hover { background: #fff0f5; }
 
-/* Dialogue Styles */
-.dialogue-box {
-    width: 100%;
-    height: 100%;
-    background: rgba(20, 20, 30, 0.98);
-    border: 2px solid #d4af37;
+.indicator {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #ddd;
+}
+.indicator.on { background: #ffb7b2; }
+
+/* --- Visual Novel Menu Styles --- */
+.vn-container {
+    width: 100vw;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    /* Polka dot pattern background */
+    background-color: transparent; 
+}
+
+.vn-box {
+    width: 95%;
+    max-width: 750px;
+    background: #fffbf5; /* Light Cream */
+    border: 4px solid #fff;
+    outline: 2px dashed #ffb7b2; /* Dashed pink outline */
+    border-radius: 15px;
+    box-shadow: 0 10px 25px rgba(142, 110, 83, 0.15);
     display: flex;
     flex-direction: column;
-    box-sizing: border-box;
+    overflow: hidden;
+    position: relative;
 }
 
-.header-bar {
-    background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), transparent);
-    padding: 8px 15px;
+/* Decorative corner patterns */
+.vn-box::after {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background-image: radial-gradient(#ffb7b2 1px, transparent 1px);
+    background-size: 20px 20px;
+    opacity: 0.1;
+    pointer-events: none;
+}
+
+.vn-header {
+    height: 40px;
+    background: #fff0f5; /* Lavender Blush */
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    padding: 0 15px;
+    border-bottom: 2px solid #fff;
+    position: relative;
+    z-index: 2;
     cursor: grab;
-    -webkit-app-region: drag; /* Critical for dragging */
+    -webkit-app-region: drag;
 }
 
-.header-bar:active { cursor: grabbing; }
+.vn-header:active { cursor: grabbing; }
 
-.title {
-    color: #d4af37;
+.header-ribbon {
+    background: #ffb7b2;
+    padding: 2px 15px;
+    border-radius: 15px;
+    color: #fff;
     font-size: 0.9rem;
-    letter-spacing: 2px;
     font-weight: bold;
-    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+    box-shadow: 0 2px 0 rgba(0,0,0,0.1);
 }
 
-.control-btn {
-    background: none;
-    border: none;
-    color: #d4af37;
-    font-size: 1.5rem;
+.vn-close-btn {
+    background: #fff;
+    border: 1px solid #ffb7b2;
+    color: #ffb7b2;
+    border-radius: 10px;
+    padding: 2px 10px;
+    font-size: 0.8rem;
     cursor: pointer;
-    line-height: 1;
-    opacity: 0.8;
+    font-weight: bold;
+    transition: all 0.2s;
 }
 
-.control-btn:hover { opacity: 1; color: #fff; }
+.vn-close-btn:hover {
+    background: #ffb7b2;
+    color: #fff;
+}
 
-.content {
-    flex-grow: 1;
+.vn-content {
     padding: 20px;
+    min-height: 220px;
     display: flex;
     justify-content: center;
     align-items: center;
+    position: relative;
+    z-index: 2;
 }
 
-.loading-state {
+/* Loading Animation */
+.vn-loading {
     display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px;
-    width: 60%;
+    gap: 8px;
 }
 
-.progress-bar {
-    width: 100%;
-    height: 4px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 2px;
-    overflow: hidden;
+.bounce-dot {
+    width: 12px; height: 12px;
+    background: #ffb7b2;
+    border-radius: 50%;
+    animation: bounce 0.6s infinite alternate;
+}
+.bounce-dot:nth-child(2) { animation-delay: 0.2s; background: #a2d2ff; }
+.bounce-dot:nth-child(3) { animation-delay: 0.4s; background: #ffd93d; }
+
+@keyframes bounce { to { transform: translateY(-10px); } }
+@keyframes wiggle { 0%, 100% { transform: rotate(-5deg); } 50% { transform: rotate(5deg); } }
+
+.vn-error {
+    color: #ff6b6b;
+    text-align: center;
 }
 
-.progress-fill {
-    width: 100%;
-    height: 100%;
-    background: #d4af37;
-    transform-origin: left;
-    animation: progress 2s infinite ease-in-out;
+.vn-retry-btn {
+    margin-top: 10px;
+    background: #ff6b6b;
+    color: #fff;
+    border: none;
+    padding: 5px 15px;
+    border-radius: 15px;
+    cursor: pointer;
 }
 
-.loading-label {
-    color: #d4af37;
-    font-size: 0.8rem;
-    letter-spacing: 3px;
-    opacity: 0.8;
-}
-
-.options-list {
+/* Options */
+.vn-options {
     width: 100%;
     display: flex;
     flex-direction: column;
     gap: 12px;
 }
 
-.option-item {
-    background: linear-gradient(90deg, rgba(255,255,255,0.03), transparent);
-    border-left: 3px solid #666;
-    padding: 15px;
+.vn-option-card {
+    background: #fff;
+    border: 2px solid #eee;
+    border-radius: 12px;
+    padding: 12px 15px;
     cursor: pointer;
     transition: all 0.2s;
-    color: #ccc;
+    position: relative;
+    overflow: hidden;
     display: flex;
-    align-items: baseline;
-    gap: 10px;
+    flex-direction: column;
+    gap: 4px;
 }
 
-.option-item:hover {
-    background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), transparent);
-    border-left-color: #d4af37;
-    padding-left: 20px;
-    color: #fff;
+.vn-option-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
 }
 
-.label {
-    color: #d4af37;
+.vn-option-card.pink { border-left: 5px solid #ffb7b2; }
+.vn-option-card.pink:hover { border-color: #ffb7b2; background: #fff0f5; }
+.vn-option-card.pink .card-label { color: #ff8e88; }
+
+.vn-option-card.blue { border-left: 5px solid #a2d2ff; }
+.vn-option-card.blue:hover { border-color: #a2d2ff; background: #f0f8ff; }
+.vn-option-card.blue .card-label { color: #74b9ff; }
+
+.vn-option-card.yellow { border-left: 5px solid #ffd93d; }
+.vn-option-card.yellow:hover { border-color: #ffd93d; background: #fffdf0; }
+.vn-option-card.yellow .card-label { color: #f4c724; }
+
+.card-label {
+    font-size: 0.75rem;
     font-weight: bold;
-    font-size: 0.9rem;
-    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 1px;
 }
 
-.text {
-    font-size: 1.05rem;
-    line-height: 1.5;
+.card-text {
+    color: #555;
+    font-size: 1rem;
+    line-height: 1.4;
 }
-
-@keyframes shine { 0% { left: -100%; } 20% { left: 100%; } 100% { left: 100%; } }
-@keyframes progress { 0% { transform: scaleX(0); } 50% { transform: scaleX(0.7); } 100% { transform: scaleX(1); opacity: 0; } }
 </style>
 ```
