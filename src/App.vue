@@ -29,19 +29,6 @@ const startAnalysis = async () => {
   currentEventPayload.value = null;
   isAnalyzingSilent.value = isSilentMode.value;
   
-  await invoke("analyze", { silent: isSilentMode.value });
-};
-
-// Close dialogue
-const closeDialogue = async () => {
-  showDialogue.value = false;
-    await invoke("reset_window");
-  }
-};
-
-const analyzeImage = async (base64Image: string) => {
-  if (hasSilentResult.value && showDialogue.value) {
-     loading.value = false;
      return;
   }
 
