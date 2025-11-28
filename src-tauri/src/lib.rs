@@ -135,7 +135,7 @@ async fn reset_window(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
     let window = app.get_webview_window("main").ok_or("Main window not found")?;
     
     // Resize back to widget size
-    window.set_size(PhysicalSize::new(180, 300)).map_err(|e| e.to_string())?;
+    window.set_size(PhysicalSize::new(200, 250)).map_err(|e| e.to_string())?;
 
     // Restore position
     let last_pos = state.last_position.lock().unwrap();
@@ -145,8 +145,8 @@ async fn reset_window(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
         // Default to bottom right if no saved position
         if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
             let size = monitor.size();
-            let x = size.width as i32 - 220;
-            let y = size.height as i32 - 350;
+            let x = size.width as i32 - 240;
+            let y = size.height as i32 - 300;
             window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
         }
     }
