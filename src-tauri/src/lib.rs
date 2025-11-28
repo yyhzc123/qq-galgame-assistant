@@ -21,10 +21,10 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn analyze(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
+async fn analyze(app: AppHandle, state: State<'_, AppState>, silent: bool) -> Result<(), String> {
     let window = app.get_webview_window("main").ok_or("Main window not found")?;
     
-    // Save current position
+    // Save current position if not already saved (or update it)
     if let Ok(pos) = window.outer_position() {
         let mut last_pos = state.last_position.lock().unwrap();
         *last_pos = Some(pos);
@@ -33,22 +33,32 @@ async fn analyze(app: AppHandle, state: State<'_, AppState>) -> Result<(), Strin
     // 1. Hide the window so we don't capture it
     window.hide().map_err(|e| e.to_string())?;
     
-    // 2. Wait for the window to disappear and the previous window to gain focus
+    // 2. Wait for the window to disappear
     thread::sleep(Duration::from_millis(300));
 
     // 3. Capture the now active window
     let base64_image = capture_active_window();
 
-    // 4. Resize and Reposition for Dialogue Mode
-    if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
-        let screen_size = monitor.size();
-        let width = 800;
-        let height = 300;
-        let x = (screen_size.width as i32 - width) / 2;
-        let y = screen_size.height as i32 - height - 50; // 50px padding from bottom
+    // 4. Resize and Reposition
+    if silent {
+        // Restore to widget size/pos immediately
+        window.set_size(PhysicalSize::new(100, 100)).map_err(|e| e.to_string())?;
+        let last_pos = state.last_position.lock().unwrap();
+        if let Some(pos) = *last_pos {
+            window.set_position(pos).map_err(|e| e.to_string())?;
+        }
+    } else {
+        // Dialogue Mode
+        if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
+            let screen_size = monitor.size();
+            let width = 800;
+            let height = 600; // Taller for vertical options
+            let x = (screen_size.width as i32 - width) / 2;
+            let y = (screen_size.height as i32 - height) / 2; // Center on screen
 
-        window.set_size(PhysicalSize::new(width as u32, height as u32)).map_err(|e| e.to_string())?;
-        window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
+            window.set_size(PhysicalSize::new(width as u32, height as u32)).map_err(|e| e.to_string())?;
+            window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
+        }
     }
 
     window.show().map_err(|e| e.to_string())?;
