@@ -220,13 +220,6 @@ const getCardClass = (index: number) => {
   <!-- Widget Mode -->
   <div v-else-if="!showDialogue" class="widget-container">
     <div class="widget-glass" @mousedown="startDrag">
-        <!-- Drag Handle -->
-        <div class="drag-handle" @mousedown.stop="startDrag" title="Drag to move">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="#8e6e53">
-                <path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"></path>
-            </svg>
-        </div>
-
         <div class="cute-badge" @click.stop="startAnalysis" @mousedown.stop :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
             <div class="paw-print">
                 <div class="pad main"></div>
@@ -417,6 +410,32 @@ html, body, #app {
 .widget-container {
   width: 100vw;
   height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.widget-glass {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 20px; /* Increased padding */
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.5);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px; /* Increased gap */
+    cursor: default; /* Changed from grab to default */
+    min-width: 100px; /* Ensure minimum width */
+    position: relative;
+}
+
+.cute-badge {
+    width: 65px;
+    height: 65px;
     background: #fff5e6;
     border: 3px solid #ffb7b2;
     border-radius: 50%;

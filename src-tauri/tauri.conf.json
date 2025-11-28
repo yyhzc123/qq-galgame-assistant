@@ -1,41 +1,41 @@
 {
-  "$schema": "https://schema.tauri.app/config/2",
-  "productName": "qqgal",
-  "version": "0.1.0",
-  "identifier": "com.qqgal.app",
-  "build": {
-    "beforeDevCommand": "npm run dev",
-    "beforeBuildCommand": "npm run build",
-    "devUrl": "http://localhost:1420",
-    "frontendDist": "../dist"
-  },
-  "app": {
-    "windows": [
-      {
-        "title": "qqgal",
-        "width": 200,
-        "height": 250,
-        "decorations": false,
-        "transparent": true,
-        "shadow": false,
-        "alwaysOnTop": true,
-        "resizable": false,
-        "skipTaskbar": true
-      }
-    ],
-    "security": {
-      "csp": null
+    "$schema": "https://schema.tauri.app/config/2",
+    "productName": "qqgal",
+    "version": "0.1.0",
+    "identifier": "com.qqgal.app",
+    "build": {
+        "beforeDevCommand": "npm run dev",
+        "beforeBuildCommand": "npm run build",
+        "devUrl": "http://localhost:1420",
+        "frontendDist": "../dist"
+    },
+    "app": {
+        "windows": [
+            {
+                "title": "qqgal",
+                "width": 120,
+                "height": 120,
+                "decorations": false,
+                "transparent": true,
+                "shadow": false,
+                "alwaysOnTop": true,
+                "resizable": false,
+                "skipTaskbar": true
+            }
+        ],
+        "security": {
+            "csp": null
+        }
+    },
+    "bundle": {
+        "active": true,
+        "targets": "all",
+        "icon": [
+            "icons/32x32.png",
+            "icons/128x128.png",
+            "icons/128x128@2x.png",
+            "icons/icon.icns",
+            "icons/icon.ico"
+        ]
     }
-  },
-  "bundle": {
-    "active": true,
-    "targets": "all",
-    "icon": [
-      "icons/32x32.png",
-      "icons/128x128.png",
-      "icons/128x128@2x.png",
-      "icons/icon.icns",
-      "icons/icon.ico"
-    ]
-  }
 }
