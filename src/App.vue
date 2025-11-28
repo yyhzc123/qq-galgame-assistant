@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = ref("");
@@ -206,7 +207,7 @@ const getCardClass = (index: number) => {
   <!-- Widget Mode -->
   <div v-else-if="!showDialogue" class="widget-container">
     <div class="widget-glass" data-tauri-drag-region>
-        <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
+        <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }" data-tauri-drag-region>
             <div class="paw-print">
                 <div class="pad main"></div>
                 <div class="pad toe t1"></div>
@@ -404,8 +405,8 @@ html, body, #app {
     -webkit-backdrop-filter: blur(12px);
     padding: 20px; /* Increased padding */
     border-radius: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    
+    
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -432,7 +433,6 @@ html, body, #app {
     box-shadow: 0 4px 10px rgba(142, 110, 83, 0.1);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
-    /* Removed data-tauri-drag-region from here to allow clicking */
 }
 
 .cute-badge:hover {
