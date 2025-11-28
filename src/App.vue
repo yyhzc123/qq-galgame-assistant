@@ -8,7 +8,8 @@ import { GoogleGenerativeAI } from "@google/generative-ai";
 const API_KEY = "AIzaSyCsMdS9v6totSlUtTlPZ4BR9v0BFrgLbLk";
 const genAI = new GoogleGenerativeAI(API_KEY);
 
-const options = ref<{ tsundere: string; sweet: string; funny: string } | null>(null);
+// Dynamic options type
+const options = ref<Array<{ style: string; text: string }> | null>(null);
 const loading = ref(false);
 const error = ref("");
 const showDialogue = ref(false);
@@ -57,13 +58,22 @@ const analyzeImage = async (base64Image: string) => {
   
   try {
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    // Improved Prompt for Dynamic Styles
     const prompt = `Analyze the chat history in this image. The last message is the one to reply to. 
-    Provide 3 distinct reply options in a Galgame style (in Chinese):
-    1. Tsundere (傲娇 - Cold but caring)
-    2. Sweet/Gentle (温柔 - Supportive and kind)
-    3. Funny/Meme (搞笑 - Humorous or sarcastic)
+    Provide 3 distinct reply options in a Galgame style (in Chinese).
+    Instead of fixed archetypes, dynamically choose 3 most suitable styles based on the conversation context (e.g., 傲娇, 温柔, 腹黑, 幽默, 害羞, 调皮, etc.).
     
-    Output ONLY a valid JSON object with keys: 'tsundere', 'sweet', 'funny'. Do not include markdown formatting.`;
+    Output ONLY a valid JSON array of objects, where each object has:
+    - "style": The style name in Chinese (max 4 chars).
+    - "text": The reply text.
+    
+    Example JSON format:
+    [
+      {"style": "傲娇", "text": "哼，谁...谁稀罕你回消息啊！"},
+      {"style": "温柔", "text": "今天也很辛苦呢，要注意休息哦。"},
+      {"style": "腹黑", "text": "呵呵，看来你很懂嘛~"}
+    ]
+    Do not include markdown formatting.`;
 
     const result = await model.generateContent([
       prompt,
@@ -139,43 +149,51 @@ const toggleSilentMode = (e: Event) => {
     e.stopPropagation();
     isSilentMode.value = !isSilentMode.value;
 }
+
+// Helper to cycle card colors
+const getCardClass = (index: number) => {
+    const classes = ['pink', 'blue', 'yellow'];
+    return classes[index % classes.length];
+}
 </script>
 
 <template>
-  <!-- Widget Mode: Cute Badge Style -->
-  <div v-if="!showDialogue" class="widget-container" data-tauri-drag-region>
-    <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
-        <div class="paw-print">
-            <div class="pad main"></div>
-            <div class="pad toe t1"></div>
-            <div class="pad toe t2"></div>
-            <div class="pad toe t3"></div>
+  <!-- Widget Mode: Frosted Glass Style -->
+  <div v-if="!showDialogue" class="widget-container">
+    <div class="widget-glass" data-tauri-drag-region>
+        <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
+            <div class="paw-print">
+                <div class="pad main"></div>
+                <div class="pad toe t1"></div>
+                <div class="pad toe t2"></div>
+                <div class="pad toe t3"></div>
+            </div>
+            <div class="badge-label">
+                <span v-if="hasSilentResult">查看</span>
+                <span v-else>Start</span>
+            </div>
         </div>
-        <div class="badge-label">
-            <span v-if="hasSilentResult">查看</span>
-            <span v-else>Start</span>
-        </div>
-    </div>
 
-    <!-- Mini Controls -->
-    <div class="mini-controls">
-        <button class="mini-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
-            <div class="indicator" :class="{ 'on': isSilentMode }"></div>
-            <span>Silent</span>
-        </button>
-        <button class="mini-btn quit" @click="quitApp" title="退出">
-            <span>Exit</span>
-        </button>
+        <!-- Mini Controls -->
+        <div class="mini-controls">
+            <button class="mini-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+                <div class="indicator" :class="{ 'on': isSilentMode }"></div>
+                <span>Silent</span>
+            </button>
+            <button class="mini-btn quit" @click="quitApp" title="退出">
+                <span>Exit</span>
+            </button>
+        </div>
     </div>
   </div>
 
-  <!-- Dialogue Mode: Visual Novel Menu Style -->
+  <!-- Dialogue Mode: Clean Visual Novel Style -->
   <div v-else class="vn-container">
       <div class="vn-box">
-          <!-- Decorative Header -->
+          <!-- Header (Draggable) -->
           <div class="vn-header" data-tauri-drag-region>
-              <div class="header-ribbon">
-                  <span class="header-text">Galgame Assistant</span>
+              <div class="header-ribbon" data-tauri-drag-region>
+                  <span class="header-text" data-tauri-drag-region>Galgame Assistant</span>
               </div>
               <button class="vn-close-btn" @click="closeDialogue">Close</button>
           </div>
@@ -194,19 +212,17 @@ const toggleSilentMode = (e: Event) => {
                 <button class="vn-retry-btn" @click="retryAnalysis">Retry</button>
             </div>
 
-            <!-- Options List -->
+            <!-- Options List (Dynamic) -->
             <div v-else-if="options" class="vn-options">
-                <div class="vn-option-card pink" @click="copyToClipboard(options.tsundere)">
-                    <div class="card-label">Tsundere</div>
-                    <div class="card-text">{{ options.tsundere }}</div>
-                </div>
-                <div class="vn-option-card blue" @click="copyToClipboard(options.sweet)">
-                    <div class="card-label">Sweet</div>
-                    <div class="card-text">{{ options.sweet }}</div>
-                </div>
-                <div class="vn-option-card yellow" @click="copyToClipboard(options.funny)">
-                    <div class="card-label">Funny</div>
-                    <div class="card-text">{{ options.funny }}</div>
+                <div 
+                    v-for="(opt, index) in options" 
+                    :key="index"
+                    class="vn-option-card" 
+                    :class="getCardClass(index)"
+                    @click="copyToClipboard(opt.text)"
+                >
+                    <div class="card-label">{{ opt.style }}</div>
+                    <div class="card-text">{{ opt.text }}</div>
                 </div>
             </div>
           </div>
@@ -225,7 +241,7 @@ html, body, #app {
   background: transparent;
   overflow: hidden;
   user-select: none;
-  font-family: 'M PLUS Rounded 1c', sans-serif; /* Cute rounded font */
+  font-family: 'M PLUS Rounded 1c', sans-serif;
 }
 </style>
 
@@ -235,26 +251,46 @@ html, body, #app {
   width: 100vw;
   height: 100vh;
   display: flex;
-  flex-direction: column;
   justify-content: center;
   align-items: center;
-  gap: 8px;
+}
+
+.widget-glass {
+    background: rgba(255, 255, 255, 0.6);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 15px;
+    border-radius: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    cursor: grab; /* Indicates draggable */
+}
+
+.widget-glass:active {
+    cursor: grabbing;
 }
 
 .cute-badge {
     width: 65px;
     height: 65px;
-    background: #fff5e6; /* Cream */
-    border: 3px solid #ffb7b2; /* Pastel Pink */
+    background: #fff5e6;
+    border: 3px solid #ffb7b2;
     border-radius: 50%;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
     cursor: pointer;
-    box-shadow: 0 4px 10px rgba(142, 110, 83, 0.2); /* Soft brown shadow */
+    box-shadow: 0 4px 10px rgba(142, 110, 83, 0.1);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    /* Prevent drag on the button itself so click works reliably */
+    /* Actually in Tauri, click passes through to drag region if not handled. 
+       But we have @click handler. */
 }
 
 .cute-badge:hover {
@@ -263,12 +299,12 @@ html, body, #app {
 }
 
 .cute-badge.analyzing {
-    border-color: #ffd93d; /* Yellow */
+    border-color: #ffd93d;
     animation: wiggle 1s infinite;
 }
 
 .cute-badge.ready {
-    border-color: #6ff7c1; /* Mint */
+    border-color: #6ff7c1;
     background: #e0fff4;
 }
 
@@ -301,39 +337,36 @@ html, body, #app {
 
 .badge-label {
     font-size: 0.7rem;
-    color: #8e6e53; /* Chocolate */
+    color: #8e6e53;
     font-weight: bold;
 }
 
 .mini-controls {
     display: flex;
     gap: 8px;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 4px 8px;
-    border-radius: 12px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    /* Removed background since parent has glass effect */
 }
 
 .mini-btn {
-    background: none;
-    border: none;
+    background: rgba(255,255,255,0.5);
+    border: 1px solid rgba(255,255,255,0.8);
     font-size: 0.7rem;
     color: #8e6e53;
     cursor: pointer;
     display: flex;
     align-items: center;
     gap: 4px;
-    padding: 2px 4px;
-    border-radius: 4px;
-    transition: background 0.2s;
+    padding: 4px 8px;
+    border-radius: 8px;
+    transition: all 0.2s;
 }
 
-.mini-btn:hover { background: #fff0f5; }
+.mini-btn:hover { background: #fff; transform: translateY(-1px); }
 
 .indicator {
     width: 6px; height: 6px;
     border-radius: 50%;
-    background: #ddd;
+    background: #ccc;
 }
 .indicator.on { background: #ffb7b2; }
 
@@ -344,45 +377,35 @@ html, body, #app {
     display: flex;
     justify-content: center;
     align-items: center;
-    /* Polka dot pattern background */
     background-color: transparent; 
 }
 
 .vn-box {
     width: 95%;
     max-width: 750px;
-    background: #fffbf5; /* Light Cream */
-    border: 4px solid #fff;
-    outline: 2px dashed #ffb7b2; /* Dashed pink outline */
+    background: rgba(255, 251, 245, 0.95); /* Slightly transparent cream */
+    backdrop-filter: blur(10px);
     border-radius: 15px;
-    box-shadow: 0 10px 25px rgba(142, 110, 83, 0.15);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
+    /* Removed the dashed outline and thick border */
+    border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 /* Decorative corner patterns */
-.vn-box::after {
-    content: '';
-    position: absolute;
-    top: 0; left: 0; right: 0; bottom: 0;
-    background-image: radial-gradient(#ffb7b2 1px, transparent 1px);
-    background-size: 20px 20px;
-    opacity: 0.1;
-    pointer-events: none;
-}
+/* Removed .vn-box::after */
 
 .vn-header {
-    height: 40px;
-    background: #fff0f5; /* Lavender Blush */
+    height: 45px;
+    background: linear-gradient(to right, #fff0f5, #fff5e6);
     display: flex;
     justify-content: space-between;
     align-items: center;
     padding: 0 15px;
-    border-bottom: 2px solid #fff;
-    position: relative;
-    z-index: 2;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
     cursor: grab;
     -webkit-app-region: drag;
 }
@@ -391,21 +414,21 @@ html, body, #app {
 
 .header-ribbon {
     background: #ffb7b2;
-    padding: 2px 15px;
-    border-radius: 15px;
+    padding: 4px 12px;
+    border-radius: 12px;
     color: #fff;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     font-weight: bold;
-    box-shadow: 0 2px 0 rgba(0,0,0,0.1);
+    box-shadow: 0 2px 5px rgba(255, 183, 178, 0.4);
 }
 
 .vn-close-btn {
-    background: #fff;
+    background: transparent;
     border: 1px solid #ffb7b2;
     color: #ffb7b2;
-    border-radius: 10px;
-    padding: 2px 10px;
-    font-size: 0.8rem;
+    border-radius: 8px;
+    padding: 4px 12px;
+    font-size: 0.75rem;
     cursor: pointer;
     font-weight: bold;
     transition: all 0.2s;
@@ -417,8 +440,8 @@ html, body, #app {
 }
 
 .vn-content {
-    padding: 20px;
-    min-height: 220px;
+    padding: 25px;
+    min-height: 200px;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -447,6 +470,7 @@ html, body, #app {
 .vn-error {
     color: #ff6b6b;
     text-align: center;
+    padding: 20px;
 }
 
 .vn-retry-btn {
@@ -454,8 +478,8 @@ html, body, #app {
     background: #ff6b6b;
     color: #fff;
     border: none;
-    padding: 5px 15px;
-    border-radius: 15px;
+    padding: 6px 16px;
+    border-radius: 20px;
     cursor: pointer;
 }
 
@@ -469,46 +493,46 @@ html, body, #app {
 
 .vn-option-card {
     background: #fff;
-    border: 2px solid #eee;
+    border: 1px solid #f0f0f0;
     border-radius: 12px;
-    padding: 12px 15px;
+    padding: 15px 20px;
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 4px;
+    gap: 6px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
 }
 
 .vn-option-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
 }
 
-.vn-option-card.pink { border-left: 5px solid #ffb7b2; }
-.vn-option-card.pink:hover { border-color: #ffb7b2; background: #fff0f5; }
+.vn-option-card.pink { border-left: 4px solid #ffb7b2; }
+.vn-option-card.pink:hover { border-color: #ffb7b2; background: #fff5f7; }
 .vn-option-card.pink .card-label { color: #ff8e88; }
 
-.vn-option-card.blue { border-left: 5px solid #a2d2ff; }
+.vn-option-card.blue { border-left: 4px solid #a2d2ff; }
 .vn-option-card.blue:hover { border-color: #a2d2ff; background: #f0f8ff; }
 .vn-option-card.blue .card-label { color: #74b9ff; }
 
-.vn-option-card.yellow { border-left: 5px solid #ffd93d; }
-.vn-option-card.yellow:hover { border-color: #ffd93d; background: #fffdf0; }
+.vn-option-card.yellow { border-left: 4px solid #ffd93d; }
+.vn-option-card.yellow:hover { border-color: #ffd93d; background: #fffdf5; }
 .vn-option-card.yellow .card-label { color: #f4c724; }
 
 .card-label {
     font-size: 0.75rem;
     font-weight: bold;
-    text-transform: uppercase;
     letter-spacing: 1px;
 }
 
 .card-text {
     color: #555;
     font-size: 1rem;
-    line-height: 1.4;
+    line-height: 1.5;
 }
 </style>
 ```
