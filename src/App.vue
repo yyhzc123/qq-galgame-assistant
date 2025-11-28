@@ -5,10 +5,8 @@ import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
-const API_KEY = "AIzaSyCsMdS9v6totSlUtTlPZ4BR9v0BFrgLbLk";
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-// Dynamic options type
+const apiKey = ref("");
+const showSetup = ref(false);
 const options = ref<Array<{ style: string; text: string }> | null>(null);
 const loading = ref(false);
 const error = ref("");
@@ -47,6 +45,13 @@ const quitApp = async () => {
   await invoke("quit");
 };
 
+const saveApiKey = () => {
+  if (apiKey.value.trim()) {
+    localStorage.setItem("gemini_api_key", apiKey.value.trim());
+    showSetup.value = false;
+  }
+};
+
 const analyzeImage = async (base64Image: string) => {
   if (hasSilentResult.value && showDialogue.value) {
      loading.value = false;
@@ -57,11 +62,16 @@ const analyzeImage = async (base64Image: string) => {
   error.value = "";
   
   try {
+    const genAI = new GoogleGenerativeAI(apiKey.value);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
-    // Improved Prompt for Dynamic Styles
-    const prompt = `Analyze the chat history in this image. The last message is the one to reply to. 
-    Provide 3 distinct reply options in a Galgame style (in Chinese).
-    Instead of fixed archetypes, dynamically choose 3 most suitable styles based on the conversation context (e.g., 傲娇, 温柔, 腹黑, 幽默, 害羞, 调皮, etc.).
+    
+    const prompt = `You are a Galgame Assistant. Analyze the chat history in the image.
+    - Messages on the RIGHT side are from the USER (me).
+    - Messages on the LEFT side are from OTHERS.
+    - The goal is to reply to the last message from OTHERS (Left side).
+    
+    Task: Provide 3 distinct reply options in a Galgame style (in Chinese).
+    Instead of fixed archetypes, dynamically choose 3 most suitable styles based on the conversation context (e.g., 傲娇, 温柔, 腹黑, 幽默, 害羞, 调皮, 高冷, etc.).
     
     Output ONLY a valid JSON array of objects, where each object has:
     - "style": The style name in Chinese (max 4 chars).
@@ -107,6 +117,13 @@ const analyzeImage = async (base64Image: string) => {
 };
 
 onMounted(async () => {
+  const storedKey = localStorage.getItem("gemini_api_key");
+  if (storedKey) {
+    apiKey.value = storedKey;
+  } else {
+    showSetup.value = true;
+  }
+
   await listen<string>("analyze-chat", async (event) => {
     if (!isAnalyzingSilent.value) {
         showDialogue.value = true;
@@ -158,8 +175,21 @@ const getCardClass = (index: number) => {
 </script>
 
 <template>
-  <!-- Widget Mode: Frosted Glass Style -->
-  <div v-if="!showDialogue" class="widget-container">
+  <!-- Setup Screen -->
+  <div v-if="showSetup" class="setup-container" data-tauri-drag-region>
+    <div class="setup-box">
+      <h3>Welcome to qqgal</h3>
+      <p>Please enter your Gemini API Key to start.</p>
+      <input v-model="apiKey" type="password" placeholder="Paste API Key here" class="api-input" />
+      <div class="setup-actions">
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link">Get API Key</a>
+        <button @click="saveApiKey" class="save-btn" :disabled="!apiKey">Start</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Widget Mode -->
+  <div v-else-if="!showDialogue" class="widget-container">
     <div class="widget-glass" data-tauri-drag-region>
         <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
             <div class="paw-print">
@@ -177,17 +207,16 @@ const getCardClass = (index: number) => {
         <!-- Mini Controls -->
         <div class="mini-controls">
             <button class="mini-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
-                <div class="indicator" :class="{ 'on': isSilentMode }"></div>
-                <span>Silent</span>
+                <span class="icon">{{ isSilentMode ? '🤫' : '🔔' }}</span>
             </button>
             <button class="mini-btn quit" @click="quitApp" title="退出">
-                <span>Exit</span>
+                <span class="icon">❌</span>
             </button>
         </div>
     </div>
   </div>
 
-  <!-- Dialogue Mode: Clean Visual Novel Style -->
+  <!-- Dialogue Mode -->
   <div v-else class="vn-container">
       <div class="vn-box">
           <!-- Header (Draggable) -->
@@ -246,6 +275,58 @@ html, body, #app {
 </style>
 
 <style scoped>
+/* --- Setup Styles --- */
+.setup-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+}
+
+.setup-box {
+  background: #fff;
+  padding: 20px;
+  border-radius: 15px;
+  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  text-align: center;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.setup-box h3 { margin: 0; color: #8e6e53; font-size: 1rem; }
+.setup-box p { margin: 0; font-size: 0.8rem; color: #666; }
+
+.api-input {
+  padding: 8px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.setup-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 5px;
+}
+
+.link { font-size: 0.7rem; color: #ffb7b2; text-decoration: none; }
+.save-btn {
+  background: #ffb7b2;
+  color: #fff;
+  border: none;
+  padding: 5px 15px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+.save-btn:disabled { background: #ccc; }
+
 /* --- Widget Styles --- */
 .widget-container {
   width: 100vw;
@@ -256,17 +337,17 @@ html, body, #app {
 }
 
 .widget-glass {
-    background: rgba(255, 255, 255, 0.6);
+    background: rgba(255, 255, 255, 0.4);
     backdrop-filter: blur(12px);
     -webkit-backdrop-filter: blur(12px);
     padding: 15px;
-    border-radius: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.8);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
     display: flex;
     flex-direction: column;
     align-items: center;
-    gap: 10px;
+    gap: 12px;
     cursor: grab; /* Indicates draggable */
 }
 
@@ -288,9 +369,6 @@ html, body, #app {
     box-shadow: 0 4px 10px rgba(142, 110, 83, 0.1);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
-    /* Prevent drag on the button itself so click works reliably */
-    /* Actually in Tauri, click passes through to drag region if not handled. 
-       But we have @click handler. */
 }
 
 .cute-badge:hover {
@@ -343,32 +421,27 @@ html, body, #app {
 
 .mini-controls {
     display: flex;
-    gap: 8px;
-    /* Removed background since parent has glass effect */
+    gap: 15px;
 }
 
 .mini-btn {
-    background: rgba(255,255,255,0.5);
-    border: 1px solid rgba(255,255,255,0.8);
-    font-size: 0.7rem;
-    color: #8e6e53;
+    background: none;
+    border: none;
+    font-size: 1.2rem;
     cursor: pointer;
     display: flex;
     align-items: center;
-    gap: 4px;
-    padding: 4px 8px;
-    border-radius: 8px;
-    transition: all 0.2s;
-}
-
-.mini-btn:hover { background: #fff; transform: translateY(-1px); }
-
-.indicator {
-    width: 6px; height: 6px;
+    justify-content: center;
+    padding: 5px;
     border-radius: 50%;
-    background: #ccc;
+    transition: all 0.2s;
+    width: 30px;
+    height: 30px;
+    background: rgba(255,255,255,0.5);
 }
-.indicator.on { background: #ffb7b2; }
+
+.mini-btn:hover { background: #fff; transform: scale(1.1); }
+.mini-btn.active { background: #ffb7b2; color: #fff; }
 
 /* --- Visual Novel Menu Styles --- */
 .vn-container {
@@ -383,31 +456,25 @@ html, body, #app {
 .vn-box {
     width: 95%;
     max-width: 750px;
-    background: rgba(255, 251, 245, 0.95); /* Slightly transparent cream */
-    backdrop-filter: blur(10px);
-    border-radius: 15px;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+    /* Removed background, border, shadow to make it just content */
+    background: transparent;
     display: flex;
     flex-direction: column;
     overflow: hidden;
     position: relative;
-    /* Removed the dashed outline and thick border */
-    border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
-/* Decorative corner patterns */
-/* Removed .vn-box::after */
-
 .vn-header {
-    height: 45px;
-    background: linear-gradient(to right, #fff0f5, #fff5e6);
+    height: 40px;
+    /* Minimal header for dragging */
+    background: transparent;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 0 15px;
-    border-bottom: 1px solid rgba(0,0,0,0.05);
+    padding: 0 5px;
     cursor: grab;
     -webkit-app-region: drag;
+    margin-bottom: 10px;
 }
 
 .vn-header:active { cursor: grabbing; }
@@ -423,8 +490,8 @@ html, body, #app {
 }
 
 .vn-close-btn {
-    background: transparent;
-    border: 1px solid #ffb7b2;
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
     color: #ffb7b2;
     border-radius: 8px;
     padding: 4px 12px;
@@ -432,6 +499,7 @@ html, body, #app {
     cursor: pointer;
     font-weight: bold;
     transition: all 0.2s;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .vn-close-btn:hover {
@@ -440,19 +508,22 @@ html, body, #app {
 }
 
 .vn-content {
-    padding: 25px;
-    min-height: 200px;
+    /* No padding here, just the list */
     display: flex;
-    justify-content: center;
-    align-items: center;
-    position: relative;
-    z-index: 2;
+    flex-direction: column;
+    gap: 10px;
 }
 
 /* Loading Animation */
 .vn-loading {
     display: flex;
     gap: 8px;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 15px;
+    width: fit-content;
+    align-self: center;
 }
 
 .bounce-dot {
@@ -471,6 +542,8 @@ html, body, #app {
     color: #ff6b6b;
     text-align: center;
     padding: 20px;
+    background: rgba(255,255,255,0.9);
+    border-radius: 15px;
 }
 
 .vn-retry-btn {
@@ -503,12 +576,12 @@ html, body, #app {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.02);
+    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
 }
 
 .vn-option-card:hover {
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
 }
 
 .vn-option-card.pink { border-left: 4px solid #ffb7b2; }
@@ -519,7 +592,7 @@ html, body, #app {
 .vn-option-card.blue:hover { border-color: #a2d2ff; background: #f0f8ff; }
 .vn-option-card.blue .card-label { color: #74b9ff; }
 
-.vn-option-card.yellow { border-left: 4px solid #ffd93d; }
+.vn-option-card.yellow { border-left: 44px solid #ffd93d; }
 .vn-option-card.yellow:hover { border-color: #ffd93d; background: #fffdf5; }
 .vn-option-card.yellow .card-label { color: #f4c724; }
 
