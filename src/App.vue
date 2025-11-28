@@ -1,25 +1,17 @@
-<script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
-import { getCurrentWindow } from "@tauri-apps/api/window";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const apiKey = ref("");
-const showSetup = ref(false);
-const options = ref<Array<{ style: string; text: string }> | null>(null);
-const loading = ref(false);
 const error = ref("");
 const showDialogue = ref(false);
 const currentEventPayload = ref<string | null>(null);
 const isSilentMode = ref(false);
 const isAnalyzingSilent = ref(false);
 const hasSilentResult = ref(false);
+const promptTemplate = ref("");
 
 // Start analysis
 const startAnalysis = async () => {
   if (hasSilentResult.value) {
-    await invoke("analyze", { silent: false });
+    // Just expand the window to show results, don't re-analyze
+    await invoke("expand_window");
+    showDialogue.value = true;
     return;
   }
 
@@ -66,8 +58,8 @@ const analyzeImage = async (base64Image: string) => {
     const genAI = new GoogleGenerativeAI(apiKey.value);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
-    // Refined Prompt: Full Context Analysis
-    const prompt = `You are a Galgame Assistant. Analyze the chat history in the image.
+    // Use loaded prompt or fallback
+    const prompt = promptTemplate.value || `You are a Galgame Assistant. Analyze the chat history in the image.
     - Messages on the RIGHT side are from the USER (me).
     - Messages on the LEFT side are from OTHERS.
     
@@ -127,6 +119,13 @@ onMounted(async () => {
   } else {
     showSetup.value = true;
     await invoke("setup_window");
+  }
+
+  // Load prompt template
+  try {
+    promptTemplate.value = await invoke("get_prompt_template");
+  } catch (e) {
+    console.error("Failed to load prompt:", e);
   }
 
   await listen<string>("analyze-chat", async (event) => {
@@ -234,8 +233,11 @@ const getCardClass = (index: number) => {
   </div>
 
   <!-- Dialogue Mode -->
-  <div v-else class="vn-container" @click.self="closeDialogue">
+  <div v-else class="vn-container">
       <div class="vn-box">
+          <div class="vn-header">
+              <button class="close-btn" @click="closeDialogue">×</button>
+          </div>
           <div class="vn-content">
             <!-- Loading State -->
             <div v-if="loading" class="vn-loading">
@@ -547,12 +549,12 @@ html, body, #app {
     justify-content: center;
     align-items: center;
     background-color: transparent; 
+    pointer-events: none; /* Allow clicks to pass through */
 }
 
 .vn-box {
     width: 95%;
-    max-width: 750px;
-    /* Completely transparent, no border, no shadow */
+    max-width: 400px; /* Smaller width for better UX */
     background: transparent;
     border: none;
     box-shadow: none;
@@ -560,6 +562,31 @@ html, body, #app {
     flex-direction: column;
     overflow: visible; /* Allow content to flow */
     position: relative;
+    pointer-events: auto; /* Re-enable clicks for the box */
+}
+
+.vn-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 10px;
+}
+
+.close-btn {
+    background: rgba(255, 255, 255, 0.8);
+    border: none;
+    border-radius: 50%;
+    width: 30px;
+    height: 30px;
+    font-size: 1.2rem;
+    color: #8e6e53;
+    cursor: pointer;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    transition: all 0.2s;
+}
+
+.close-btn:hover {
+    background: #ffb7b2;
+    color: #fff;
 }
 
 .vn-content {
@@ -621,7 +648,8 @@ html, body, #app {
 }
 
 .vn-option-card {
-    background: #fff;
+    background: rgba(255, 255, 255, 0.95); /* Slightly transparent */
+    backdrop-filter: blur(10px);
     border: none; /* No border initially */
     border-left: 5px solid #ddd; /* Default accent */
     border-radius: 15px;
@@ -665,3 +693,4 @@ html, body, #app {
     line-height: 1.6;
 }
 </style>
+```
