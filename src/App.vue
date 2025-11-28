@@ -3,9 +3,6 @@ import { ref, onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import mascotImg from "./assets/mascot.png";
-import charImg from "./assets/char.png";
-import dialogueImg from "./assets/dialogue.png";
 
 const API_KEY = "AIzaSyCsMdS9v6totSlUtTlPZ4BR9v0BFrgLbLk";
 const genAI = new GoogleGenerativeAI(API_KEY);
@@ -86,7 +83,6 @@ onMounted(async () => {
 const copyToClipboard = async (text: string) => {
   try {
     await navigator.clipboard.writeText(text);
-    // Visual feedback could be added here
     closeOverlay();
   } catch (err) {
     console.error("Failed to copy: ", err);
@@ -104,66 +100,51 @@ const retryAnalysis = () => {
 </script>
 
 <template>
-  <!-- Floating Widget Mode -->
+  <!-- Floating Widget Mode: Abstract Tech Orb -->
   <div v-if="!showOverlay" class="floating-widget" @click="startAnalysis" data-tauri-drag-region>
-    <div class="mascot-container">
-      <img :src="mascotImg" class="mascot-icon" alt="AI Assistant" />
-      <div class="pulse-ring"></div>
+    <div class="tech-orb">
+      <div class="orb-core"></div>
+      <div class="orb-ring"></div>
     </div>
   </div>
 
   <!-- Fullscreen Overlay Mode -->
   <div v-else class="galgame-overlay">
-    <!-- Character Art -->
-    <img :src="charImg" class="character-art" alt="Character" />
-
-    <!-- Main Dialogue Area -->
-    <div class="dialogue-container">
-      <img :src="dialogueImg" class="dialogue-bg" alt="UI" />
-      
-      <div class="dialogue-content">
-        <div class="header">
-          <span class="name-tag">AI Assistant</span>
-          <button class="close-btn" @click="closeOverlay">×</button>
-        </div>
-
-        <div class="message-area">
-          <div v-if="loading" class="typing-effect">
-            正在观察你的对话...<span class="cursor">|</span>
-          </div>
-
-          <div v-else-if="error" class="error-msg">
-            {{ error }}
-            <button @click="retryAnalysis" class="retry-btn">重试</button>
-          </div>
-
-          <div v-else class="instruction-text">
-            请选择一个回复选项...
-          </div>
-        </div>
+    
+    <!-- Central Choice Menu -->
+    <div v-if="options" class="choice-menu">
+      <div class="choice-btn" @click="copyToClipboard(options.tsundere)">
+        <span class="choice-text">{{ options.tsundere }}</span>
+      </div>
+      <div class="choice-btn" @click="copyToClipboard(options.sweet)">
+        <span class="choice-text">{{ options.sweet }}</span>
+      </div>
+      <div class="choice-btn" @click="copyToClipboard(options.funny)">
+        <span class="choice-text">{{ options.funny }}</span>
       </div>
     </div>
 
-    <!-- Options Selection (Floating above dialogue) -->
-    <div v-if="options" class="options-wrapper">
-      <div class="option-btn tsundere" @click="copyToClipboard(options.tsundere)">
-        <span class="tag">傲娇</span>
-        <span class="text">{{ options.tsundere }}</span>
+    <!-- Bottom Dialogue Box (System Status) -->
+    <div class="dialogue-box">
+      <div class="name-box">SYSTEM</div>
+      <div class="text-box">
+        <div v-if="loading" class="typing">
+          正在解析当前对话场景...
+        </div>
+        <div v-else-if="error" class="error">
+          {{ error }} <span class="retry-link" @click="retryAnalysis">[重试]</span>
+        </div>
+        <div v-else class="instruction">
+          已生成回复方案，请做出选择。
+        </div>
       </div>
-      <div class="option-btn sweet" @click="copyToClipboard(options.sweet)">
-        <span class="tag">温柔</span>
-        <span class="text">{{ options.sweet }}</span>
-      </div>
-      <div class="option-btn funny" @click="copyToClipboard(options.funny)">
-        <span class="tag">搞笑</span>
-        <span class="text">{{ options.funny }}</span>
-      </div>
+      <button class="close-btn" @click="closeOverlay">×</button>
     </div>
   </div>
 </template>
 
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;500;700&display=swap');
 
 html, body, #app {
   margin: 0;
@@ -189,43 +170,47 @@ html, body, #app {
   -webkit-app-region: drag; 
 }
 
-.mascot-container {
+.tech-orb {
   position: relative;
-  width: 100px;
-  height: 100px;
+  width: 60px;
+  height: 60px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
   transition: transform 0.2s;
 }
 
-.mascot-container:hover {
+.tech-orb:hover {
   transform: scale(1.1);
 }
 
-.mascot-icon {
-  width: 100%;
-  height: 100%;
+.orb-core {
+  width: 40px;
+  height: 40px;
+  background: #00f2ff;
   border-radius: 50%;
-  border: 3px solid #fff;
-  box-shadow: 0 4px 15px rgba(255, 105, 180, 0.5);
-  object-fit: cover;
-  z-index: 2;
-  position: relative;
+  box-shadow: 0 0 15px #00f2ff;
+  opacity: 0.8;
+  animation: pulse 2s infinite ease-in-out;
 }
 
-.pulse-ring {
+.orb-ring {
   position: absolute;
-  top: 0;
-  left: 0;
   width: 100%;
   height: 100%;
+  border: 2px solid rgba(0, 242, 255, 0.5);
   border-radius: 50%;
-  border: 2px solid rgba(255, 105, 180, 0.6);
-  animation: pulse 2s infinite;
-  z-index: 1;
+  border-top-color: transparent;
+  animation: spin 4s linear infinite;
 }
 
 @keyframes pulse {
-  0% { transform: scale(1); opacity: 0.8; }
-  100% { transform: scale(1.5); opacity: 0; }
+  0%, 100% { transform: scale(0.9); opacity: 0.6; }
+  50% { transform: scale(1.1); opacity: 0.9; }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
 
 /* Overlay */
@@ -235,166 +220,133 @@ html, body, #app {
   left: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.3);
+  background: rgba(0, 0, 0, 0.2);
   z-index: 9999;
 }
 
-.character-art {
+/* Choice Menu - Centered */
+.choice-menu {
   position: absolute;
-  bottom: 0;
-  right: 5%;
-  height: 85vh;
-  object-fit: contain;
-  filter: drop-shadow(0 0 20px rgba(255, 255, 255, 0.2));
-  animation: slideIn 0.5s ease-out;
-  z-index: 1;
+  top: 45%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  width: 80%;
+  max-width: 600px;
+  z-index: 10;
 }
 
-.dialogue-container {
+.choice-btn {
+  background: rgba(0, 20, 40, 0.85);
+  border: 1px solid rgba(0, 242, 255, 0.3);
+  padding: 20px 30px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s;
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(5px);
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+}
+
+.choice-btn:hover {
+  background: rgba(0, 40, 80, 0.95);
+  border-color: #00f2ff;
+  transform: scale(1.02);
+  box-shadow: 0 0 15px rgba(0, 242, 255, 0.4);
+}
+
+.choice-btn::before {
+  content: '';
   position: absolute;
-  bottom: 20px;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background: #00f2ff;
+  opacity: 0.5;
+}
+
+.choice-text {
+  color: #fff;
+  font-size: 1.1rem;
+  letter-spacing: 1px;
+}
+
+/* Dialogue Box - Bottom */
+.dialogue-box {
+  position: absolute;
+  bottom: 50px;
   left: 50%;
   transform: translateX(-50%);
   width: 90%;
-  max-width: 800px;
-  height: 200px;
-  z-index: 2;
-}
-
-.dialogue-bg {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  opacity: 0.9;
-  border-radius: 15px;
+  max-width: 900px;
+  height: 150px;
+  background: rgba(10, 15, 25, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-}
-
-.dialogue-content {
-  position: relative;
-  z-index: 3;
-  padding: 25px 40px;
-  color: #fff;
-  height: 100%;
-  box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  padding: 20px;
+  box-sizing: border-box;
+  backdrop-filter: blur(10px);
 }
 
-.header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 10px;
-}
-
-.name-tag {
-  background: linear-gradient(90deg, #ff6b6b, #ff8e53);
-  padding: 5px 15px;
-  border-radius: 20px;
+.name-box {
+  position: absolute;
+  top: -20px;
+  left: 20px;
+  background: #00f2ff;
+  color: #000;
+  padding: 5px 20px;
   font-weight: bold;
+  font-size: 0.9rem;
+  transform: skewX(-15deg);
+  box-shadow: 2px 2px 0 rgba(0,0,0,0.5);
+}
+
+.text-box {
+  flex-grow: 1;
+  color: #eee;
   font-size: 1.1rem;
-  box-shadow: 0 2px 10px rgba(255, 107, 107, 0.4);
+  line-height: 1.6;
+  padding-top: 10px;
+}
+
+.typing {
+  color: #00f2ff;
+  animation: blink 1.5s infinite;
+}
+
+.error {
+  color: #ff4757;
+}
+
+.retry-link {
+  text-decoration: underline;
+  cursor: pointer;
+  margin-left: 10px;
+  color: #fff;
 }
 
 .close-btn {
+  position: absolute;
+  top: 10px;
+  right: 15px;
   background: none;
   border: none;
-  color: rgba(255, 255, 255, 0.7);
-  font-size: 2rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 1.5rem;
   cursor: pointer;
-  line-height: 1;
+  transition: color 0.2s;
 }
 
-.message-area {
-  flex-grow: 1;
-  font-size: 1.2rem;
-  line-height: 1.6;
-  text-shadow: 0 2px 4px rgba(0,0,0,0.5);
-}
-
-.typing-effect {
-  color: #a8e6cf;
-}
-
-.cursor {
-  animation: blink 1s infinite;
-}
-
-.error-msg {
-  color: #ff6b6b;
-  font-weight: bold;
-}
-
-.retry-btn {
-  margin-left: 10px;
-  padding: 5px 15px;
-  background: #fff;
-  color: #ff6b6b;
-  border: none;
-  border-radius: 5px;
-  cursor: pointer;
-  font-weight: bold;
-}
-
-/* Options */
-.options-wrapper {
-  position: absolute;
-  top: 40%;
-  left: 20%; /* Position to the left of character */
-  transform: translateY(-50%);
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  z-index: 10;
-  width: 400px;
-}
-
-.option-btn {
-  background: rgba(255, 255, 255, 0.9);
-  backdrop-filter: blur(5px);
-  padding: 15px 20px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: all 0.2s;
-  border-left: 5px solid #ccc;
-  box-shadow: 0 5px 15px rgba(0,0,0,0.2);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) backwards;
-}
-
-.option-btn:hover {
-  transform: translateX(10px) scale(1.02);
-  background: #fff;
-}
-
-.option-btn.tsundere { border-color: #ff6b6b; animation-delay: 0.1s; }
-.option-btn.sweet { border-color: #48dbfb; animation-delay: 0.2s; }
-.option-btn.funny { border-color: #feca57; animation-delay: 0.3s; }
-
-.tag {
-  font-size: 0.8rem;
-  padding: 2px 8px;
-  border-radius: 4px;
+.close-btn:hover {
   color: #fff;
-  font-weight: bold;
-  white-space: nowrap;
 }
 
-.tsundere .tag { background: #ff6b6b; }
-.sweet .tag { background: #48dbfb; }
-.funny .tag { background: #feca57; }
-
-.text {
-  color: #333;
-  font-weight: 500;
-}
-
-@keyframes blink { 50% { opacity: 0; } }
-@keyframes slideIn { from { transform: translateX(100px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-@keyframes popIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+@keyframes blink { 50% { opacity: 0.5; } }
 </style>
