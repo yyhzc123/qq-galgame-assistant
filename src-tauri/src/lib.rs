@@ -125,6 +125,23 @@ fn quit() {
     std::process::exit(0);
 }
 
+#[tauri::command]
+async fn setup_window(app: AppHandle) -> Result<(), String> {
+    let window = app.get_webview_window("main").ok_or("Main window not found")?;
+    
+    if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
+        let screen_size = monitor.size();
+        let width = 300;
+        let height = 400;
+        let x = (screen_size.width as i32 - width) / 2;
+        let y = (screen_size.height as i32 - height) / 2;
+
+        window.set_size(PhysicalSize::new(width as u32, height as u32)).map_err(|e| e.to_string())?;
+        window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -151,7 +168,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, analyze, reset_window, quit])
+        .invoke_handler(tauri::generate_handler![greet, analyze, reset_window, quit, setup_window])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

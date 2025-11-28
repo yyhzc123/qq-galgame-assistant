@@ -45,10 +45,11 @@ const quitApp = async () => {
   await invoke("quit");
 };
 
-const saveApiKey = () => {
+const saveApiKey = async () => {
   if (apiKey.value.trim()) {
     localStorage.setItem("gemini_api_key", apiKey.value.trim());
     showSetup.value = false;
+    await invoke("reset_window");
   }
 };
 
@@ -125,6 +126,7 @@ onMounted(async () => {
     apiKey.value = storedKey;
   } else {
     showSetup.value = true;
+    await invoke("setup_window");
   }
 
   await listen<string>("analyze-chat", async (event) => {
@@ -180,13 +182,24 @@ const getCardClass = (index: number) => {
 <template>
   <!-- Setup Screen -->
   <div v-if="showSetup" class="setup-container" data-tauri-drag-region>
-    <div class="setup-box">
+    <div class="setup-card">
+      <div class="setup-icon">🐾</div>
       <h3>Welcome to qqgal</h3>
       <p>Please enter your Gemini API Key to start.</p>
-      <input v-model="apiKey" type="password" placeholder="Paste API Key here" class="api-input" />
+      
+      <div class="input-group">
+        <input 
+            v-model="apiKey" 
+            type="password" 
+            placeholder="Paste API Key here" 
+            class="api-input" 
+            @keyup.enter="saveApiKey"
+        />
+      </div>
+
       <div class="setup-actions">
+        <button @click="saveApiKey" class="save-btn" :disabled="!apiKey">Start Adventure</button>
         <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link">Get API Key</a>
-        <button @click="saveApiKey" class="save-btn" :disabled="!apiKey">Start</button>
       </div>
     </div>
   </div>
@@ -286,50 +299,104 @@ html, body, #app {
   display: flex;
   justify-content: center;
   align-items: center;
-  background: rgba(255, 255, 255, 0.9);
+  background: #fffbf5; /* Light cream background for setup */
 }
 
-.setup-box {
+.setup-card {
   background: #fff;
-  padding: 20px;
-  border-radius: 15px;
-  box-shadow: 0 5px 20px rgba(0,0,0,0.1);
+  padding: 30px;
+  border-radius: 20px;
+  box-shadow: 0 10px 30px rgba(142, 110, 83, 0.1);
   text-align: center;
-  width: 200px;
+  width: 80%;
+  max-width: 300px;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 15px;
+  border: 2px solid #fff0f5;
 }
 
-.setup-box h3 { margin: 0; color: #8e6e53; font-size: 1rem; }
-.setup-box p { margin: 0; font-size: 0.8rem; color: #666; }
+.setup-icon {
+    font-size: 3rem;
+    margin-bottom: -10px;
+}
+
+.setup-card h3 { 
+    margin: 0; 
+    color: #8e6e53; 
+    font-size: 1.2rem; 
+}
+
+.setup-card p { 
+    margin: 0; 
+    font-size: 0.9rem; 
+    color: #888; 
+    line-height: 1.4;
+}
+
+.input-group {
+    width: 100%;
+}
 
 .api-input {
-  padding: 8px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
-  font-size: 0.8rem;
+  padding: 12px;
+  border: 2px solid #eee;
+  border-radius: 12px;
+  font-size: 0.9rem;
   width: 100%;
   box-sizing: border-box;
+  outline: none;
+  transition: border-color 0.2s;
+  color: #555;
+  font-family: 'M PLUS Rounded 1c', sans-serif;
+}
+
+.api-input:focus {
+    border-color: #ffb7b2;
 }
 
 .setup-actions {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 15px;
   align-items: center;
-  margin-top: 5px;
+  margin-top: 10px;
 }
 
-.link { font-size: 0.7rem; color: #ffb7b2; text-decoration: none; }
 .save-btn {
   background: #ffb7b2;
   color: #fff;
   border: none;
-  padding: 5px 15px;
-  border-radius: 8px;
+  padding: 10px 20px;
+  border-radius: 25px;
   cursor: pointer;
+  font-size: 1rem;
+  font-weight: bold;
+  width: 100%;
+  transition: all 0.2s;
+  box-shadow: 0 4px 10px rgba(255, 183, 178, 0.4);
 }
-.save-btn:disabled { background: #ccc; }
+
+.save-btn:hover {
+    background: #ff9e99;
+    transform: translateY(-2px);
+}
+
+.save-btn:disabled { 
+    background: #eee; 
+    color: #aaa;
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.link { 
+    font-size: 0.8rem; 
+    color: #a2d2ff; 
+    text-decoration: none; 
+    border-bottom: 1px dashed #a2d2ff;
+}
+.link:hover { color: #74b9ff; border-bottom-style: solid; }
 
 /* --- Widget Styles --- */
 .widget-container {
