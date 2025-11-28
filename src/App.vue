@@ -2,7 +2,6 @@
 import { ref, onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
-
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = ref("");
@@ -16,6 +15,10 @@ const isSilentMode = ref(false);
 const isAnalyzingSilent = ref(false);
 const hasSilentResult = ref(false);
 const promptTemplate = ref("");
+
+const startDrag = async () => {
+    await invoke("drag_window");
+};
 
 // Start analysis
 const startAnalysis = async () => {
@@ -216,15 +219,15 @@ const getCardClass = (index: number) => {
 
   <!-- Widget Mode -->
   <div v-else-if="!showDialogue" class="widget-container">
-    <div class="widget-glass" data-tauri-drag-region>
+    <div class="widget-glass" @mousedown="startDrag">
         <!-- Drag Handle -->
-        <div class="drag-handle" data-tauri-drag-region title="Drag to move">
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="#8e6e53" style="pointer-events: none;">
+        <div class="drag-handle" @mousedown.stop="startDrag" title="Drag to move">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="#8e6e53">
                 <path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"></path>
             </svg>
         </div>
 
-        <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
+        <div class="cute-badge" @click.stop="startAnalysis" @mousedown.stop :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
             <div class="paw-print">
                 <div class="pad main"></div>
                 <div class="pad toe t1"></div>
@@ -238,12 +241,12 @@ const getCardClass = (index: number) => {
         </div>
 
         <!-- Mini Controls (Text Based, Flat Design) -->
-        <div class="mini-controls">
-            <button class="mini-btn silent" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+        <div class="mini-controls" @mousedown.stop>
+            <button class="mini-btn silent" @click.stop="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
                 <div class="status-dot" :class="{ 'on': isSilentMode }"></div>
                 <span>Silent</span>
             </button>
-            <button class="mini-btn exit" @click="quitApp" title="退出">
+            <button class="mini-btn exit" @click.stop="quitApp" title="退出">
                 <span>Exit</span>
             </button>
         </div>
@@ -431,7 +434,7 @@ html, body, #app {
     flex-direction: column;
     align-items: center;
     gap: 15px; /* Increased gap */
-    cursor: move; /* Changed from default to move */
+    cursor: default; /* Changed from grab to default */
     min-width: 100px; /* Ensure minimum width */
     position: relative;
 }
