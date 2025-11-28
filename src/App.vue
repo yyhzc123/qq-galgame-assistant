@@ -225,17 +225,6 @@ const getCardClass = (index: number) => {
             <button class="mini-btn silent" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
                 <div class="status-dot" :class="{ 'on': isSilentMode }"></div>
                 <span>Silent</span>
-            </button>
-            <button class="mini-btn exit" @click="quitApp" title="退出">
-                <span>Exit</span>
-            </button>
-        </div>
-    </div>
-                <div class="bounce-dot"></div>
-                <div class="bounce-dot"></div>
-            </div>
-            
-            <!-- Error State -->
             <div v-else-if="error" class="vn-error">
                 <p>{{ error }}</p>
                 <button class="vn-retry-btn" @click="retryAnalysis">Retry</button>
