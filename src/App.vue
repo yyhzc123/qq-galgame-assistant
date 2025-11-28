@@ -2,6 +2,7 @@
 import { ref, onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
 import { invoke } from "@tauri-apps/api/core";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 import { GoogleGenerativeAI } from "@google/generative-ai";
 
 const apiKey = ref("");
@@ -15,6 +16,10 @@ const isSilentMode = ref(false);
 const isAnalyzingSilent = ref(false);
 const hasSilentResult = ref(false);
 const promptTemplate = ref("");
+
+const startDrag = async () => {
+    await getCurrentWindow().startDragging();
+};
 
 // Start analysis
 const startAnalysis = async () => {
@@ -215,8 +220,15 @@ const getCardClass = (index: number) => {
 
   <!-- Widget Mode -->
   <div v-else-if="!showDialogue" class="widget-container">
-    <div class="widget-glass" data-tauri-drag-region>
-        <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }" data-tauri-drag-region>
+    <div class="widget-glass" @mousedown="startDrag">
+        <!-- Drag Handle -->
+        <div class="drag-handle" @mousedown.stop="startDrag" title="Drag to move">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="#8e6e53">
+                <path d="M10 9h4V6h3l-5-5-5 5h3v3zm-1 1H6V7l-5 5 5 5v-3h3v-4zm14 2l-5-5v3h-3v4h3v3l5-5zm-9 3h-4v3H7l5 5 5-5h-3v-3z"></path>
+            </svg>
+        </div>
+
+        <div class="cute-badge" @click.stop="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
             <div class="paw-print">
                 <div class="pad main"></div>
                 <div class="pad toe t1"></div>
@@ -231,11 +243,11 @@ const getCardClass = (index: number) => {
 
         <!-- Mini Controls (Text Based, Flat Design) -->
         <div class="mini-controls">
-            <button class="mini-btn silent" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+            <button class="mini-btn silent" @click.stop="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
                 <div class="status-dot" :class="{ 'on': isSilentMode }"></div>
                 <span>Silent</span>
             </button>
-            <button class="mini-btn exit" @click="quitApp" title="退出">
+            <button class="mini-btn exit" @click.stop="quitApp" title="退出">
                 <span>Exit</span>
             </button>
         </div>
@@ -423,12 +435,32 @@ html, body, #app {
     flex-direction: column;
     align-items: center;
     gap: 15px; /* Increased gap */
-    cursor: grab;
+    cursor: default; /* Changed from grab to default */
     min-width: 100px; /* Ensure minimum width */
+    position: relative;
 }
 
-.widget-glass:active {
-    cursor: grabbing;
+/* Drag Handle Styles */
+.drag-handle {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: move;
+    opacity: 0.5;
+    transition: opacity 0.2s;
+    z-index: 10;
+    background: rgba(255,255,255,0.5);
+    border-radius: 50%;
+}
+
+.drag-handle:hover {
+    opacity: 1;
+    background: rgba(255,255,255,0.8);
 }
 
 .cute-badge {
@@ -445,6 +477,7 @@ html, body, #app {
     box-shadow: 0 4px 10px rgba(142, 110, 83, 0.1);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    z-index: 5;
 }
 
 .cute-badge:hover {
@@ -502,6 +535,7 @@ html, body, #app {
     justify-content: center;
     /* Ensure buttons don't shrink */
     flex-shrink: 0;
+    z-index: 5;
 }
 
 .mini-btn {
