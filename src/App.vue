@@ -1,3 +1,4 @@
+```
 <script setup lang="ts">
 import { ref, onMounted } from "vue";
 import { listen } from "@tauri-apps/api/event";
@@ -74,6 +75,10 @@ const closeDialogue = async () => {
   hasSilentResult.value = false;
   error.value = "";
   await invoke("reset_window");
+};
+
+const quitApp = async () => {
+  await invoke("quit");
 };
 
 const analyzeImage = async (base64Image: string) => {
@@ -177,23 +182,29 @@ const toggleSilentMode = (e: Event) => {
 
 <template>
   <!-- Widget Mode -->
-  <div v-if="!showDialogue" class="widget-container" @click="startAnalysis" data-tauri-drag-region>
-    <div class="system-core" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
-      <div class="core-center"></div>
-      <div class="core-orbit"></div>
-      
-      <!-- Silent Mode Toggle (Small icon) -->
-      <div class="silent-toggle" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
-        <span v-if="isSilentMode">🤫</span>
-        <span v-else>🔔</span>
-      </div>
+  <div v-if="!showDialogue" class="widget-container" data-tauri-drag-region>
+    <!-- Main Button -->
+    <div class="main-btn" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
+        <div class="btn-content">
+            <span v-if="hasSilentResult">查看</span>
+            <span v-else>分析</span>
+        </div>
+    </div>
+
+    <!-- Controls Row -->
+    <div class="controls-row">
+        <button class="icon-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+            <span v-if="isSilentMode">🤫</span>
+            <span v-else>🔔</span>
+        </button>
+        <button class="icon-btn quit" @click="quitApp" title="退出">
+            ❌
+        </button>
     </div>
   </div>
 
-  <!-- Dialogue Mode -->
-  <div v-else class="galgame-container" data-tauri-drag-region>
-    <!-- Main Dialogue Box -->
-    <div class="dialogue-box">
+  <!-- Dialogue Mode (Directly the box, no wrapper) -->
+  <div v-else class="dialogue-box">
       <div class="header-bar" data-tauri-drag-region>
         <span class="title">GALGAME ASSISTANT</span>
         <div class="controls">
@@ -202,13 +213,16 @@ const toggleSilentMode = (e: Event) => {
       </div>
 
       <div class="content">
-        <div v-if="loading" class="loading-text">
-            少女祈祷中...
+        <div v-if="loading" class="loading-state">
+            <div class="progress-bar">
+                <div class="progress-fill"></div>
+            </div>
+            <span class="loading-label">SYSTEM ANALYZING...</span>
         </div>
         
         <div v-else-if="error" class="error-text">
             {{ error }}
-            <button class="retry-btn" @click="retryAnalysis">重试</button>
+            <button class="retry-btn" @click="retryAnalysis">RETRY</button>
         </div>
 
         <div v-else-if="options" class="options-list">
@@ -226,7 +240,6 @@ const toggleSilentMode = (e: Event) => {
             </div>
         </div>
       </div>
-    </div>
   </div>
 </template>
 
@@ -241,7 +254,7 @@ html, body, #app {
   background: transparent;
   overflow: hidden;
   user-select: none;
-  font-family: 'Noto Serif SC', serif; /* Classic Galgame font */
+  font-family: 'Noto Serif SC', serif;
 }
 </style>
 
@@ -251,154 +264,182 @@ html, body, #app {
   width: 100vw;
   height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
-  cursor: pointer;
+  gap: 10px;
 }
 
-.system-core {
-  position: relative;
-  width: 60px;
-  height: 60px;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  transition: all 0.3s;
-}
-
-.system-core:hover { transform: scale(1.1); }
-
-.core-center {
-  width: 30px;
-  height: 30px;
-  background: #00f2ff;
-  border-radius: 50%;
-  box-shadow: 0 0 15px #00f2ff;
-  animation: pulse 3s infinite ease-in-out;
-}
-
-.core-orbit {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  border: 2px solid rgba(0, 242, 255, 0.3);
-  border-radius: 50%;
-  border-left-color: #00f2ff;
-  animation: spin 2s linear infinite;
-}
-
-/* States */
-.system-core.analyzing .core-center { background: #feca57; box-shadow: 0 0 15px #feca57; }
-.system-core.analyzing .core-orbit { border-color: rgba(254, 202, 87, 0.3); border-left-color: #feca57; }
-
-.system-core.ready .core-center { background: #55efc4; box-shadow: 0 0 20px #55efc4; }
-.system-core.ready .core-orbit { border-color: rgba(85, 239, 196, 0.3); border-left-color: #55efc4; animation: spin 0.5s linear infinite; }
-
-.silent-toggle {
-    position: absolute;
-    bottom: -20px;
-    font-size: 12px;
-    opacity: 0.5;
-    transition: opacity 0.2s;
-}
-.silent-toggle:hover { opacity: 1; }
-.silent-toggle.active { opacity: 1; text-shadow: 0 0 5px #fff; }
-
-/* Galgame UI Styles */
-.galgame-container {
-    width: 100vw;
-    height: 100vh;
+.main-btn {
+    width: 60px;
+    height: 60px;
+    background: linear-gradient(135deg, #2c3e50, #000);
+    border: 2px solid #d4af37;
+    border-radius: 50%;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: rgba(0,0,0,0.1); /* Slight dim */
-}
-
-.dialogue-box {
-    width: 90%;
-    max-width: 700px;
-    background: rgba(20, 20, 30, 0.95);
-    border: 2px solid #d4af37; /* Gold border */
-    border-radius: 4px;
-    box-shadow: 0 10px 40px rgba(0,0,0,0.8);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    cursor: pointer;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
+    transition: all 0.2s;
     position: relative;
+    overflow: hidden;
 }
 
-.dialogue-box::before {
+.main-btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 0 15px rgba(212, 175, 55, 0.5);
+}
+
+.main-btn::after {
     content: '';
     position: absolute;
-    top: 2px; left: 2px; right: 2px; bottom: 2px;
-    border: 1px solid rgba(212, 175, 55, 0.3);
-    pointer-events: none;
+    top: -50%; left: -50%; width: 200%; height: 200%;
+    background: linear-gradient(45deg, transparent, rgba(255,255,255,0.1), transparent);
+    transform: rotate(45deg);
+    animation: shine 3s infinite;
+}
+
+.main-btn.analyzing { border-color: #feca57; }
+.main-btn.ready { border-color: #55efc4; }
+
+.btn-content {
+    color: #d4af37;
+    font-weight: bold;
+    font-size: 0.9rem;
+    z-index: 2;
+}
+
+.controls-row {
+    display: flex;
+    gap: 10px;
+    background: rgba(0,0,0,0.6);
+    padding: 5px 10px;
+    border-radius: 20px;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+
+.icon-btn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    opacity: 0.7;
+    transition: all 0.2s;
+    padding: 2px;
+}
+
+.icon-btn:hover { opacity: 1; transform: scale(1.1); }
+.icon-btn.active { opacity: 1; text-shadow: 0 0 5px #fff; }
+.icon-btn.quit:hover { transform: scale(1.2); }
+
+/* Dialogue Styles */
+.dialogue-box {
+    width: 100%;
+    height: 100%;
+    background: rgba(20, 20, 30, 0.98);
+    border: 2px solid #d4af37;
+    display: flex;
+    flex-direction: column;
+    box-sizing: border-box;
 }
 
 .header-bar {
-    background: linear-gradient(90deg, rgba(212, 175, 55, 0.1), transparent);
-    padding: 5px 15px;
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), transparent);
+    padding: 8px 15px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 1px solid rgba(212, 175, 55, 0.2);
-    cursor: grab; /* Indicates draggable */
+    border-bottom: 1px solid rgba(212, 175, 55, 0.3);
+    cursor: grab;
+    -webkit-app-region: drag; /* Critical for dragging */
 }
 
 .header-bar:active { cursor: grabbing; }
 
 .title {
     color: #d4af37;
-    font-size: 0.8rem;
+    font-size: 0.9rem;
     letter-spacing: 2px;
     font-weight: bold;
+    text-shadow: 0 2px 4px rgba(0,0,0,0.5);
 }
 
 .control-btn {
     background: none;
     border: none;
     color: #d4af37;
-    font-size: 1.2rem;
+    font-size: 1.5rem;
     cursor: pointer;
     line-height: 1;
+    opacity: 0.8;
 }
 
+.control-btn:hover { opacity: 1; color: #fff; }
+
 .content {
+    flex-grow: 1;
     padding: 20px;
-    min-height: 200px;
     display: flex;
     justify-content: center;
     align-items: center;
 }
 
-.loading-text {
+.loading-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px;
+    width: 60%;
+}
+
+.progress-bar {
+    width: 100%;
+    height: 4px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.progress-fill {
+    width: 100%;
+    height: 100%;
+    background: #d4af37;
+    transform-origin: left;
+    animation: progress 2s infinite ease-in-out;
+}
+
+.loading-label {
     color: #d4af37;
-    font-style: italic;
-    animation: pulse 1.5s infinite;
+    font-size: 0.8rem;
+    letter-spacing: 3px;
+    opacity: 0.8;
 }
 
 .options-list {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
 }
 
 .option-item {
-    background: linear-gradient(90deg, rgba(255,255,255,0.05), transparent);
-    border-left: 3px solid #d4af37;
+    background: linear-gradient(90deg, rgba(255,255,255,0.03), transparent);
+    border-left: 3px solid #666;
     padding: 15px;
     cursor: pointer;
     transition: all 0.2s;
-    color: #eee;
+    color: #ccc;
     display: flex;
     align-items: baseline;
     gap: 10px;
 }
 
 .option-item:hover {
-    background: linear-gradient(90deg, rgba(212, 175, 55, 0.2), transparent);
+    background: linear-gradient(90deg, rgba(212, 175, 55, 0.15), transparent);
+    border-left-color: #d4af37;
     padding-left: 20px;
+    color: #fff;
 }
 
 .label {
@@ -409,10 +450,11 @@ html, body, #app {
 }
 
 .text {
-    font-size: 1.1rem;
-    line-height: 1.4;
+    font-size: 1.05rem;
+    line-height: 1.5;
 }
 
-@keyframes pulse { 0%, 100% { opacity: 0.6; transform: scale(0.98); } 50% { opacity: 1; transform: scale(1.02); } }
-@keyframes spin { to { transform: rotate(360deg); } }
+@keyframes shine { 0% { left: -100%; } 20% { left: 100%; } 100% { left: 100%; } }
+@keyframes progress { 0% { transform: scaleX(0); } 50% { transform: scaleX(0.7); } 100% { transform: scaleX(1); opacity: 0; } }
 </style>
+```

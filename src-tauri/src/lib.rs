@@ -120,6 +120,11 @@ fn capture_active_window() -> Option<String> {
     None
 }
 
+#[tauri::command]
+fn quit() {
+    std::process::exit(0);
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -136,9 +141,6 @@ pub fn run() {
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_handler(move |app, _shortcut, event| {
                             if event.state == ShortcutState::Pressed {
-                                 // Trigger analyze via event or direct call? 
-                                 // Since analyze is async and takes state, we can't call it easily from here without async runtime.
-                                 // Easier to emit an event to frontend, which calls analyze.
                                  let _ = app.emit("trigger-analyze", ());
                             }
                         })
@@ -149,7 +151,7 @@ pub fn run() {
             }
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![greet, analyze, reset_window])
+        .invoke_handler(tauri::generate_handler![greet, analyze, reset_window, quit])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
