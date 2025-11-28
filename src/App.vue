@@ -29,6 +29,33 @@ const startAnalysis = async () => {
   currentEventPayload.value = null;
   isAnalyzingSilent.value = isSilentMode.value;
   
+  await invoke("analyze", { silent: isSilentMode.value });
+};
+
+// Close dialogue
+const closeDialogue = async () => {
+  showDialogue.value = false;
+  options.value = null;
+  hasSilentResult.value = false;
+  error.value = "";
+  await invoke("reset_window");
+};
+
+const quitApp = async () => {
+  await invoke("quit");
+};
+
+const saveApiKey = async () => {
+  if (apiKey.value.trim()) {
+    localStorage.setItem("gemini_api_key", apiKey.value.trim());
+    showSetup.value = false;
+    await invoke("reset_window");
+  }
+};
+
+const analyzeImage = async (base64Image: string) => {
+  if (hasSilentResult.value && showDialogue.value) {
+     loading.value = false;
      return;
   }
 
@@ -198,6 +225,222 @@ const getCardClass = (index: number) => {
             <button class="mini-btn silent" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
                 <div class="status-dot" :class="{ 'on': isSilentMode }"></div>
                 <span>Silent</span>
+            </button>
+            <button class="mini-btn exit" @click="quitApp" title="退出">
+                <span>Exit</span>
+```
+const closeDialogue = async () => {
+  showDialogue.value = false;
+  options.value = null;
+  hasSilentResult.value = false;
+  error.value = "";
+  await invoke("reset_window");
+};
+
+const quitApp = async () => {
+  await invoke("quit");
+};
+
+const saveApiKey = async () => {
+  if (apiKey.value.trim()) {
+    localStorage.setItem("gemini_api_key", apiKey.value.trim());
+    showSetup.value = false;
+    await invoke("reset_window");
+  }
+};
+
+const analyzeImage = async (base64Image: string) => {
+  if (hasSilentResult.value && showDialogue.value) {
+     loading.value = false;
+     return;
+  }
+
+  loading.value = true;
+  error.value = "";
+  
+  try {
+    const genAI = new GoogleGenerativeAI(apiKey.value);
+    const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
+    
+    // Refined Prompt: Full Context Analysis
+    const prompt = `You are a Galgame Assistant. Analyze the chat history in the image.
+    - Messages on the RIGHT side are from the USER (me).
+    - Messages on the LEFT side are from OTHERS.
+    
+    Task: Analyze the **entire conversation context** (both your messages on the right and others' on the left) to understand the flow, relationship, and mood.
+    Formulate a reply to the latest message based on this full context.
+    
+    Provide 3 distinct reply options in a Galgame style (in Chinese).
+    Instead of fixed archetypes, dynamically choose 3 most suitable styles based on the conversation context (e.g., 傲娇, 温柔, 腹黑, 幽默, 害羞, 调皮, 高冷, etc.).
+    
+    Output ONLY a valid JSON array of objects, where each object has:
+    - "style": The style name in Chinese (max 4 chars).
+    - "text": The reply text.
+    
+    Example JSON format:
+    [
+      {"style": "傲娇", "text": "哼，谁...谁稀罕你回消息啊！"},
+      {"style": "温柔", "text": "今天也很辛苦呢，要注意休息哦。"},
+      {"style": "腹黑", "text": "呵呵，看来你很懂嘛~"}
+    ]
+    Do not include markdown formatting.`;
+
+    const result = await model.generateContent([
+      prompt,
+      {
+        inlineData: {
+          data: base64Image,
+          mimeType: "image/png",
+        },
+      },
+    ]);
+
+    const response = await result.response;
+    const text = response.text();
+    const jsonStr = text.replace(/```json/g, "").replace(/```/g, "").trim();
+    options.value = JSON.parse(jsonStr);
+    
+    if (isAnalyzingSilent.value) {
+      hasSilentResult.value = true;
+      isAnalyzingSilent.value = false;
+      loading.value = false;
+    }
+  } catch (e: any) {
+    console.error("Analysis Error:", e);
+    error.value = "Error: " + (e.message || JSON.stringify(e));
+    isAnalyzingSilent.value = false;
+  } finally {
+    if (!isAnalyzingSilent.value) {
+        loading.value = false;
+    }
+  }
+};
+
+onMounted(async () => {
+  const storedKey = localStorage.getItem("gemini_api_key");
+  if (storedKey) {
+    apiKey.value = storedKey;
+  } else {
+    showSetup.value = true;
+    await invoke("setup_window");
+  }
+
+  await listen<string>("analyze-chat", async (event) => {
+    if (!isAnalyzingSilent.value) {
+        showDialogue.value = true;
+    }
+    currentEventPayload.value = event.payload;
+    await analyzeImage(event.payload);
+  });
+
+  await listen("trigger-analyze", async () => {
+    await startAnalysis();
+  });
+
+  await listen("analyze-error", (event) => {
+    console.error(event.payload);
+    error.value = "无法捕获窗口";
+    if (!isAnalyzingSilent.value) showDialogue.value = true;
+  });
+});
+
+const copyToClipboard = async (text: string) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    closeDialogue();
+  } catch (err) {
+    console.error("Failed to copy: ", err);
+  }
+};
+
+const retryAnalysis = () => {
+  hasSilentResult.value = false;
+  if (currentEventPayload.value) {
+    analyzeImage(currentEventPayload.value);
+  } else {
+    closeDialogue();
+    startAnalysis();
+  }
+};
+
+const toggleSilentMode = (e: Event) => {
+    e.stopPropagation();
+    isSilentMode.value = !isSilentMode.value;
+}
+
+// Helper to cycle card colors
+const getCardClass = (index: number) => {
+    const classes = ['pink', 'blue', 'yellow'];
+    return classes[index % classes.length];
+}
+</script>
+
+<template>
+  <!-- Setup Screen -->
+  <div v-if="showSetup" class="setup-container" data-tauri-drag-region>
+    <div class="setup-card">
+      <div class="setup-icon">🐾</div>
+      <h3>Welcome to qqgal</h3>
+      <p>Please enter your Gemini API Key to start.</p>
+      
+      <div class="input-group">
+        <input 
+            v-model="apiKey" 
+            type="password" 
+            placeholder="Paste API Key here" 
+            class="api-input" 
+            @keyup.enter="saveApiKey"
+        />
+      </div>
+
+      <div class="setup-actions">
+        <button @click="saveApiKey" class="save-btn" :disabled="!apiKey">Start Adventure</button>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" class="link">Get API Key</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Widget Mode -->
+  <div v-else-if="!showDialogue" class="widget-container">
+    <div class="widget-glass" data-tauri-drag-region>
+        <div class="cute-badge" @click="startAnalysis" :class="{ 'analyzing': loading && isAnalyzingSilent, 'ready': hasSilentResult }">
+            <div class="paw-print">
+                <div class="pad main"></div>
+                <div class="pad toe t1"></div>
+                <div class="pad toe t2"></div>
+                <div class="pad toe t3"></div>
+            </div>
+            <div class="badge-label">
+                <span v-if="hasSilentResult">查看</span>
+                <span v-else>Start</span>
+            </div>
+        </div>
+
+        <!-- Mini Controls (Text Based, Flat Design) -->
+        <div class="mini-controls">
+            <button class="mini-btn silent" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+                <div class="status-dot" :class="{ 'on': isSilentMode }"></div>
+                <span>Silent</span>
+            </button>
+            <button class="mini-btn exit" @click="quitApp" title="退出">
+                <span>Exit</span>
+            </button>
+        </div>
+    </div>
+  </div>
+
+  <!-- Dialogue Mode -->
+  <div v-else class="vn-container" @click.self="closeDialogue">
+      <div class="vn-box">
+          <div class="vn-content">
+            <!-- Loading State -->
+            <div v-if="loading" class="vn-loading">
+                <div class="bounce-dot"></div>
+                <div class="bounce-dot"></div>
+                <div class="bounce-dot"></div>
+            </div>
+            
+            <!-- Error State -->
             <div v-else-if="error" class="vn-error">
                 <p>{{ error }}</p>
                 <button class="vn-retry-btn" @click="retryAnalysis">Retry</button>
@@ -347,6 +590,30 @@ html, body, #app {
 .widget-container {
   width: 100vw;
   height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.widget-glass {
+    background: rgba(255, 255, 255, 0.4);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    padding: 20px; /* Increased padding */
+    border-radius: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 15px; /* Increased gap */
+    cursor: grab;
+    min-width: 100px; /* Ensure minimum width */
+}
+
+.widget-glass:active {
+    cursor: grabbing;
+}
 
 .cute-badge {
     width: 65px;
@@ -362,6 +629,7 @@ html, body, #app {
     box-shadow: 0 4px 10px rgba(142, 110, 83, 0.1);
     transition: all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
     position: relative;
+    /* Removed data-tauri-drag-region from here to allow clicking */
 }
 
 .cute-badge:hover {
@@ -417,23 +685,26 @@ html, body, #app {
     gap: 10px;
     width: 100%;
     justify-content: center;
+    /* Ensure buttons don't shrink */
+    flex-shrink: 0;
 }
 
 .mini-btn {
     background: rgba(255, 255, 255, 0.6);
     border: 1px solid #ffb7b2;
-    font-size: 0.7rem;
+    font-size: 0.75rem; /* Slightly larger font */
     color: #8e6e53;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 4px 12px;
-    border-radius: 15px; /* Pill shape */
+    padding: 6px 14px; /* Increased padding */
+    border-radius: 15px;
     transition: all 0.2s;
     font-weight: bold;
-    min-width: 60px;
+    min-width: 70px; /* Ensure minimum width */
+    white-space: nowrap; /* Prevent text wrapping */
 }
 
 .mini-btn:hover {
@@ -463,7 +734,7 @@ html, body, #app {
     border-radius: 50%;
     background: #ddd;
 }
-.status-dot.on { background: #fff; } /* White dot when active (pink bg) */
+.status-dot.on { background: #fff; }
 
 /* --- Visual Novel Menu Styles --- */
 .vn-container {
@@ -478,9 +749,20 @@ html, body, #app {
 .vn-box {
     width: 95%;
     max-width: 750px;
-    /* Removed background, border, shadow to make it just content */
+    /* Completely transparent, no border, no shadow */
     background: transparent;
+    border: none;
+    box-shadow: none;
     display: flex;
+    flex-direction: column;
+    overflow: visible; /* Allow content to flow */
+    position: relative;
+}
+
+.vn-content {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
 }
 
 /* Loading Animation */
@@ -493,6 +775,7 @@ html, body, #app {
     border-radius: 15px;
     width: fit-content;
     align-self: center;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
 .bounce-dot {
@@ -513,6 +796,7 @@ html, body, #app {
     padding: 20px;
     background: rgba(255,255,255,0.9);
     border-radius: 15px;
+    box-shadow: 0 5px 15px rgba(0,0,0,0.1);
 }
 
 .vn-retry-btn {
@@ -530,51 +814,52 @@ html, body, #app {
     width: 100%;
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 15px; /* More space between floating cards */
 }
 
 .vn-option-card {
     background: #fff;
-    border: 1px solid #f0f0f0;
-    border-radius: 12px;
-    padding: 15px 20px;
+    border: none; /* No border initially */
+    border-left: 5px solid #ddd; /* Default accent */
+    border-radius: 15px;
+    padding: 18px 25px;
     cursor: pointer;
     transition: all 0.2s;
     position: relative;
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    gap: 6px;
-    box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+    gap: 8px;
+    box-shadow: 0 5px 20px rgba(0,0,0,0.1); /* Softer shadow */
 }
 
 .vn-option-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 20px rgba(0,0,0,0.1);
+    transform: translateY(-3px) scale(1.01);
+    box-shadow: 0 10px 30px rgba(0,0,0,0.15);
 }
 
-.vn-option-card.pink { border-left: 4px solid #ffb7b2; }
-.vn-option-card.pink:hover { border-color: #ffb7b2; background: #fff5f7; }
+.vn-option-card.pink { border-left-color: #ffb7b2; }
+.vn-option-card.pink:hover { background: #fff5f7; }
 .vn-option-card.pink .card-label { color: #ff8e88; }
 
-.vn-option-card.blue { border-left: 4px solid #a2d2ff; }
-.vn-option-card.blue:hover { border-color: #a2d2ff; background: #f0f8ff; }
+.vn-option-card.blue { border-left-color: #a2d2ff; }
+.vn-option-card.blue:hover { background: #f0f8ff; }
 .vn-option-card.blue .card-label { color: #74b9ff; }
 
-.vn-option-card.yellow { border-left: 4px solid #ffd93d; }
-.vn-option-card.yellow:hover { border-color: #ffd93d; background: #fffdf5; }
+.vn-option-card.yellow { border-left-color: #ffd93d; }
+.vn-option-card.yellow:hover { background: #fffdf5; }
 .vn-option-card.yellow .card-label { color: #f4c724; }
 
 .card-label {
-    font-size: 0.75rem;
+    font-size: 0.8rem;
     font-weight: bold;
     letter-spacing: 1px;
 }
 
 .card-text {
-    color: #555;
-    font-size: 1rem;
-    line-height: 1.5;
+    color: #444;
+    font-size: 1.05rem;
+    line-height: 1.6;
 }
 </style>
 ```
