@@ -1,4 +1,4 @@
-use tauri::{AppHandle, Manager, Emitter, WebviewWindow};
+use tauri::{AppHandle, Manager, Emitter, WebviewWindow, PhysicalPosition, PhysicalSize, State};
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, ShortcutState, Shortcut};
 use active_win_pos_rs::get_active_window;
 use xcap::Window;
@@ -9,6 +9,11 @@ use std::str::FromStr;
 use std::thread;
 use std::time::Duration;
 use std::path::PathBuf;
+use std::sync::Mutex;
+
+struct AppState {
+    last_position: Mutex<Option<PhysicalPosition<i32>>>,
+}
 
 #[tauri::command]
 fn greet(name: &str) -> String {
@@ -16,23 +21,34 @@ fn greet(name: &str) -> String {
 }
 
 #[tauri::command]
-async fn analyze(app: AppHandle) -> Result<(), String> {
+async fn analyze(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let window = app.get_webview_window("main").ok_or("Main window not found")?;
     
+    // Save current position
+    if let Ok(pos) = window.outer_position() {
+        let mut last_pos = state.last_position.lock().unwrap();
+        *last_pos = Some(pos);
+    }
+
     // 1. Hide the window so we don't capture it
     window.hide().map_err(|e| e.to_string())?;
     
     // 2. Wait for the window to disappear and the previous window to gain focus
     thread::sleep(Duration::from_millis(300));
 
-    // 3. Capture the now active window (which should be QQ/WeChat)
+    // 3. Capture the now active window
     let base64_image = capture_active_window();
 
-    // 4. Show the window again and maximize/fullscreen it for the overlay
+    // 4. Resize and Reposition for Dialogue Mode
     if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
-        let size = monitor.size();
-        window.set_size(tauri::Size::Physical(size.clone())).map_err(|e| e.to_string())?;
-        window.set_position(tauri::Position::Physical(tauri::PhysicalPosition { x: 0, y: 0 })).map_err(|e| e.to_string())?;
+        let screen_size = monitor.size();
+        let width = 800;
+        let height = 300;
+        let x = (screen_size.width as i32 - width) / 2;
+        let y = screen_size.height as i32 - height - 50; // 50px padding from bottom
+
+        window.set_size(PhysicalSize::new(width as u32, height as u32)).map_err(|e| e.to_string())?;
+        window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
     }
 
     window.show().map_err(|e| e.to_string())?;
@@ -48,9 +64,26 @@ async fn analyze(app: AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-async fn reset_window(app: AppHandle) -> Result<(), String> {
+async fn reset_window(app: AppHandle, state: State<'_, AppState>) -> Result<(), String> {
     let window = app.get_webview_window("main").ok_or("Main window not found")?;
-    window.set_size(tauri::Size::Logical(tauri::LogicalSize { width: 120.0, height: 120.0 })).map_err(|e| e.to_string())?;
+    
+    // Resize back to widget size
+    window.set_size(PhysicalSize::new(100, 100)).map_err(|e| e.to_string())?;
+
+    // Restore position
+    let last_pos = state.last_position.lock().unwrap();
+    if let Some(pos) = *last_pos {
+        window.set_position(pos).map_err(|e| e.to_string())?;
+    } else {
+        // Default to bottom right if no saved position
+        if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
+            let size = monitor.size();
+            let x = size.width as i32 - 150;
+            let y = size.height as i32 - 150;
+            window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
+        }
+    }
+
     Ok(())
 }
 
@@ -58,14 +91,10 @@ fn capture_active_window() -> Option<String> {
     let active_window = get_active_window().ok()?;
     let windows = Window::all().ok()?;
     
-    // Use process_path instead of process_name
     let process_path_str = active_window.process_path.to_string_lossy();
     println!("Active Window: {} ({})", active_window.title, process_path_str);
     
-    // Find the window that matches the active window
     let target_window = windows.into_iter().find(|w| {
-        // Relaxed matching: Title matches OR process_path contains app_name (case insensitive)
-        // We check if the active window's process path contains the xcap window's app name
         w.title() == active_window.title || 
         process_path_str.to_lowercase().contains(&w.app_name().to_lowercase())
     });
@@ -74,7 +103,6 @@ fn capture_active_window() -> Option<String> {
         println!("Capturing window: {}", window.title());
         let image = window.capture_image().ok()?;
         let mut bytes: Vec<u8> = Vec::new();
-        // Use ImageFormat::Png
         image.write_to(&mut Cursor::new(&mut bytes), ImageFormat::Png).ok()?;
         let b64 = general_purpose::STANDARD.encode(&bytes);
         return Some(b64);
@@ -86,6 +114,7 @@ fn capture_active_window() -> Option<String> {
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .manage(AppState { last_position: Mutex::new(None) })
         .setup(|app| {
             #[cfg(desktop)]
             {
@@ -97,9 +126,10 @@ pub fn run() {
                     tauri_plugin_global_shortcut::Builder::new()
                         .with_handler(move |app, _shortcut, event| {
                             if event.state == ShortcutState::Pressed {
-                                 if let Some(base64_image) = capture_active_window() {
-                                    let _ = app.emit("analyze-chat", base64_image);
-                                }
+                                 // Trigger analyze via event or direct call? 
+                                 // Since analyze is async and takes state, we can't call it easily from here without async runtime.
+                                 // Easier to emit an event to frontend, which calls analyze.
+                                 let _ = app.emit("trigger-analyze", ());
                             }
                         })
                         .build(),
