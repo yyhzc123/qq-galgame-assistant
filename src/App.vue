@@ -65,12 +65,15 @@ const analyzeImage = async (base64Image: string) => {
     const genAI = new GoogleGenerativeAI(apiKey.value);
     const model = genAI.getGenerativeModel({ model: "gemini-2.5-flash" });
     
+    // Refined Prompt: Full Context Analysis
     const prompt = `You are a Galgame Assistant. Analyze the chat history in the image.
     - Messages on the RIGHT side are from the USER (me).
     - Messages on the LEFT side are from OTHERS.
-    - The goal is to reply to the last message from OTHERS (Left side).
     
-    Task: Provide 3 distinct reply options in a Galgame style (in Chinese).
+    Task: Analyze the **entire conversation context** (both your messages on the right and others' on the left) to understand the flow, relationship, and mood.
+    Formulate a reply to the latest message based on this full context.
+    
+    Provide 3 distinct reply options in a Galgame style (in Chinese).
     Instead of fixed archetypes, dynamically choose 3 most suitable styles based on the conversation context (e.g., 傲娇, 温柔, 腹黑, 幽默, 害羞, 调皮, 高冷, etc.).
     
     Output ONLY a valid JSON array of objects, where each object has:
@@ -204,13 +207,14 @@ const getCardClass = (index: number) => {
             </div>
         </div>
 
-        <!-- Mini Controls -->
+        <!-- Mini Controls (Text Based, Flat Design) -->
         <div class="mini-controls">
-            <button class="mini-btn" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
-                <span class="icon">{{ isSilentMode ? '🤫' : '🔔' }}</span>
+            <button class="mini-btn silent" @click="toggleSilentMode" :class="{ 'active': isSilentMode }" title="静默模式">
+                <div class="status-dot" :class="{ 'on': isSilentMode }"></div>
+                <span>Silent</span>
             </button>
-            <button class="mini-btn quit" @click="quitApp" title="退出">
-                <span class="icon">❌</span>
+            <button class="mini-btn exit" @click="quitApp" title="退出">
+                <span>Exit</span>
             </button>
         </div>
     </div>
@@ -421,27 +425,56 @@ html, body, #app {
 
 .mini-controls {
     display: flex;
-    gap: 15px;
+    gap: 10px;
+    width: 100%;
+    justify-content: center;
 }
 
 .mini-btn {
-    background: none;
-    border: none;
-    font-size: 1.2rem;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid #ffb7b2;
+    font-size: 0.7rem;
+    color: #8e6e53;
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    padding: 5px;
-    border-radius: 50%;
+    gap: 5px;
+    padding: 4px 12px;
+    border-radius: 15px; /* Pill shape */
     transition: all 0.2s;
-    width: 30px;
-    height: 30px;
-    background: rgba(255,255,255,0.5);
+    font-weight: bold;
+    min-width: 60px;
 }
 
-.mini-btn:hover { background: #fff; transform: scale(1.1); }
-.mini-btn.active { background: #ffb7b2; color: #fff; }
+.mini-btn:hover {
+    background: #fff0f5;
+    transform: translateY(-1px);
+}
+
+.mini-btn.active {
+    background: #ffb7b2;
+    color: #fff;
+    border-color: #ffb7b2;
+}
+
+.mini-btn.exit {
+    border-color: #ddd;
+    color: #999;
+}
+
+.mini-btn.exit:hover {
+    background: #ff6b6b;
+    border-color: #ff6b6b;
+    color: #fff;
+}
+
+.status-dot {
+    width: 6px; height: 6px;
+    border-radius: 50%;
+    background: #ddd;
+}
+.status-dot.on { background: #fff; } /* White dot when active (pink bg) */
 
 /* --- Visual Novel Menu Styles --- */
 .vn-container {
@@ -592,7 +625,7 @@ html, body, #app {
 .vn-option-card.blue:hover { border-color: #a2d2ff; background: #f0f8ff; }
 .vn-option-card.blue .card-label { color: #74b9ff; }
 
-.vn-option-card.yellow { border-left: 44px solid #ffd93d; }
+.vn-option-card.yellow { border-left: 4px solid #ffd93d; }
 .vn-option-card.yellow:hover { border-color: #ffd93d; background: #fffdf5; }
 .vn-option-card.yellow .card-label { color: #f4c724; }
 
