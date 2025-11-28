@@ -35,20 +35,6 @@ const startAnalysis = async () => {
 // Close dialogue
 const closeDialogue = async () => {
   showDialogue.value = false;
-  options.value = null;
-  hasSilentResult.value = false;
-  error.value = "";
-  await invoke("reset_window");
-};
-
-const quitApp = async () => {
-  await invoke("quit");
-};
-
-const saveApiKey = async () => {
-  if (apiKey.value.trim()) {
-    localStorage.setItem("gemini_api_key", apiKey.value.trim());
-    showSetup.value = false;
     await invoke("reset_window");
   }
 };
