@@ -13,8 +13,8 @@
     "windows": [
       {
         "title": "qqgal",
-        "width": 120,
-        "height": 120,
+        "width": 180,
+        "height": 300,
         "decorations": false,
         "transparent": true,
         "shadow": false,

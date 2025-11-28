@@ -417,54 +417,6 @@ html, body, #app {
 .widget-container {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.widget-glass {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 20px; /* Increased padding */
-    border-radius: 30px;
-    
-    
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 15px; /* Increased gap */
-    cursor: default; /* Changed from grab to default */
-    min-width: 100px; /* Ensure minimum width */
-    position: relative;
-}
-
-/* Drag Handle Styles */
-.drag-handle {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: move;
-    opacity: 0.5;
-    transition: opacity 0.2s;
-    z-index: 10;
-    background: rgba(255,255,255,0.5);
-    border-radius: 50%;
-}
-
-.drag-handle:hover {
-    opacity: 1;
-    background: rgba(255,255,255,0.8);
-}
-
-.cute-badge {
-    width: 65px;
-    height: 65px;
     background: #fff5e6;
     border: 3px solid #ffb7b2;
     border-radius: 50%;
