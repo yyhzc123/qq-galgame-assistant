@@ -42,7 +42,7 @@ async fn analyze(app: AppHandle, state: State<'_, AppState>, silent: bool) -> Re
     // 4. Resize and Reposition
     if silent {
         // Restore to widget size/pos immediately
-        window.set_size(PhysicalSize::new(100, 100)).map_err(|e| e.to_string())?;
+        window.set_size(PhysicalSize::new(160, 200)).map_err(|e| e.to_string())?;
         let last_pos = state.last_position.lock().unwrap();
         if let Some(pos) = *last_pos {
             window.set_position(pos).map_err(|e| e.to_string())?;
@@ -78,7 +78,7 @@ async fn reset_window(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
     let window = app.get_webview_window("main").ok_or("Main window not found")?;
     
     // Resize back to widget size
-    window.set_size(PhysicalSize::new(100, 100)).map_err(|e| e.to_string())?;
+    window.set_size(PhysicalSize::new(160, 200)).map_err(|e| e.to_string())?;
 
     // Restore position
     let last_pos = state.last_position.lock().unwrap();
@@ -88,8 +88,8 @@ async fn reset_window(app: AppHandle, state: State<'_, AppState>) -> Result<(), 
         // Default to bottom right if no saved position
         if let Some(monitor) = window.current_monitor().map_err(|e| e.to_string())? {
             let size = monitor.size();
-            let x = size.width as i32 - 150;
-            let y = size.height as i32 - 150;
+            let x = size.width as i32 - 200;
+            let y = size.height as i32 - 250;
             window.set_position(PhysicalPosition::new(x, y)).map_err(|e| e.to_string())?;
         }
     }

@@ -231,23 +231,6 @@ const getCardClass = (index: number) => {
             </button>
         </div>
     </div>
-  </div>
-
-  <!-- Dialogue Mode -->
-  <div v-else class="vn-container">
-      <div class="vn-box">
-          <!-- Header (Draggable) -->
-          <div class="vn-header" data-tauri-drag-region>
-              <div class="header-ribbon" data-tauri-drag-region>
-                  <span class="header-text" data-tauri-drag-region>Galgame Assistant</span>
-              </div>
-              <button class="vn-close-btn" @click="closeDialogue">Close</button>
-          </div>
-
-          <div class="vn-content">
-            <!-- Loading State -->
-            <div v-if="loading" class="vn-loading">
-                <div class="bounce-dot"></div>
                 <div class="bounce-dot"></div>
                 <div class="bounce-dot"></div>
             </div>
@@ -402,29 +385,6 @@ html, body, #app {
 .widget-container {
   width: 100vw;
   height: 100vh;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.widget-glass {
-    background: rgba(255, 255, 255, 0.4);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    padding: 15px;
-    border-radius: 30px;
-    border: 1px solid rgba(255, 255, 255, 0.6);
-    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 12px;
-    cursor: grab; /* Indicates draggable */
-}
-
-.widget-glass:active {
-    cursor: grabbing;
-}
 
 .cute-badge {
     width: 65px;
@@ -559,59 +519,6 @@ html, body, #app {
     /* Removed background, border, shadow to make it just content */
     background: transparent;
     display: flex;
-    flex-direction: column;
-    overflow: hidden;
-    position: relative;
-}
-
-.vn-header {
-    height: 40px;
-    /* Minimal header for dragging */
-    background: transparent;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0 5px;
-    cursor: grab;
-    -webkit-app-region: drag;
-    margin-bottom: 10px;
-}
-
-.vn-header:active { cursor: grabbing; }
-
-.header-ribbon {
-    background: #ffb7b2;
-    padding: 4px 12px;
-    border-radius: 12px;
-    color: #fff;
-    font-size: 0.85rem;
-    font-weight: bold;
-    box-shadow: 0 2px 5px rgba(255, 183, 178, 0.4);
-}
-
-.vn-close-btn {
-    background: rgba(255, 255, 255, 0.8);
-    border: none;
-    color: #ffb7b2;
-    border-radius: 8px;
-    padding: 4px 12px;
-    font-size: 0.75rem;
-    cursor: pointer;
-    font-weight: bold;
-    transition: all 0.2s;
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-}
-
-.vn-close-btn:hover {
-    background: #ffb7b2;
-    color: #fff;
-}
-
-.vn-content {
-    /* No padding here, just the list */
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
 }
 
 /* Loading Animation */
