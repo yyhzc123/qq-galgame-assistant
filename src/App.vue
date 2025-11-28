@@ -1,16 +1,3 @@
-<script setup lang="ts">
-import { ref, onMounted } from "vue";
-import { listen } from "@tauri-apps/api/event";
-import { invoke } from "@tauri-apps/api/core";
-import { GoogleGenerativeAI } from "@google/generative-ai";
-import mascotImg from "./assets/mascot.png";
-import charImg from "./assets/char.png";
-import dialogueImg from "./assets/dialogue.png";
-
-const API_KEY = "AIzaSyCsMdS9v6totSlUtTlPZ4BR9v0BFrgLbLk";
-const genAI = new GoogleGenerativeAI(API_KEY);
-
-const options = ref<{ tsundere: string; sweet: string; funny: string } | null>(null);
 const loading = ref(false);
 const error = ref("");
 const showDialogue = ref(false);
