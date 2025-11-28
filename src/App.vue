@@ -1,3 +1,13 @@
+<script setup lang="ts">
+import { ref, onMounted } from "vue";
+import { listen } from "@tauri-apps/api/event";
+import { invoke } from "@tauri-apps/api/core";
+import { GoogleGenerativeAI } from "@google/generative-ai";
+
+const apiKey = ref("");
+const showSetup = ref(false);
+const options = ref<Array<{ style: string; text: string }> | null>(null);
+const loading = ref(false);
 const error = ref("");
 const showDialogue = ref(false);
 const currentEventPayload = ref<string | null>(null);
@@ -693,4 +703,3 @@ html, body, #app {
     line-height: 1.6;
 }
 </style>
-```
